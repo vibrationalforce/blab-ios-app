@@ -42,20 +42,61 @@ final class TheShippedShaderActuallyCompilesTests: XCTestCase {
 
     private static let viewPath = "Sources/Echoelmusic/Views/MetalBioView.swift"
 
-    /// The five `\(…)` interpolations the shader literal carries, resolved from the SAME
+    /// Every `\(…)` interpolation the shader literal carries, resolved from the SAME
     /// constants the shipped code interpolates.
     ///
     /// Reading them from the types rather than re-typing their values is the point: if
     /// `FlashGuard.ringsPhaseDampingLiteral` changes, this substitution follows it, exactly
-    /// as the shipped string does. And a SIXTH interpolation added later needs no change
-    /// here -- an unsubstituted `\(` is not valid Metal, so the compile fails loudly, which
-    /// is the safe direction for a guard to break in.
+    /// as the shipped string does.
+    ///
+    /// ⛔ #1126 — THE DOC HERE SAID A NEW INTERPOLATION "needs no change here … the compile
+    /// fails loudly, which is the safe direction for a guard to break in." BOTH HALVES WERE
+    /// TRUE AND THE COMBINATION STILL COST EIGHT COMMITS. #1117 added TEN `WaterCaustics`
+    /// interpolations for the Depth caustics and did not extend this list, so from that
+    /// commit on the guard was RED — and nobody saw it, because #396's clone lottery kept
+    /// scheduling `testTheShaderBuilds` onto the clone that dies. It surfaced only when a
+    /// surviving clone happened to pick it up, and it then read as "the newest slice broke
+    /// the shader" while the newest slice was innocent.
+    ///
+    /// ⭐ AND THE SHARPEST PART: CLAIM 2 ALREADY ASSERTED EXACTLY THIS, and its failure
+    /// message already named the exact remedy — "Add it to `substitutions` — reading the
+    /// value from the same constant the shipped string interpolates". It runs BEFORE claim 1
+    /// alphabetically, so on any clone that got this far the diagnosis was one line of test
+    /// output away. Nothing was missing from the guard. What was missing was a RUN.
+    ///
+    /// THE LESSON IS THEREFORE NOT "add a better assertion" — it is that a guard which an
+    /// unrelated infrastructure fault can SKIP will sit red for weeks while every run looks
+    /// identical from outside, and #396 is exactly such a fault. `gh-test-verdict.py` reports
+    /// skips by name for this reason; a suite that never scheduled a test is not a suite that
+    /// passed it. When a red finally appears in a slice that did not touch the failing area,
+    /// suspect the SCHEDULE before suspecting the slice.
     private static var substitutions: [(String, String)] {
         [("\\(SpectralColor.tRedMetalLiteral)", SpectralColor.tRedMetalLiteral),
          ("\\(SpectralColor.tVioletMetalLiteral)", SpectralColor.tVioletMetalLiteral),
          ("\\(FlashGuard.ringsPhaseDampingLiteral)", FlashGuard.ringsPhaseDampingLiteral),
          ("\\(FlashGuard.bloomBeatGainSwingLiteral)", FlashGuard.bloomBeatGainSwingLiteral),
-         ("\\(FlashGuard.filmicStrengthLiteral)", FlashGuard.filmicStrengthLiteral)]
+         ("\\(FlashGuard.filmicStrengthLiteral)", FlashGuard.filmicStrengthLiteral),
+         // The Depth caustics (#1117). Ten of them, and every one was missing until #1126.
+         ("\\(WaterCaustics.intensityCeilingMetalLiteral)",
+          WaterCaustics.intensityCeilingMetalLiteral),
+         ("\\(WaterCaustics.renderFocusNumberAtFullPatternMetalLiteral)",
+          WaterCaustics.renderFocusNumberAtFullPatternMetalLiteral),
+         ("\\(WaterCaustics.renderFullBrightIntensityMetalLiteral)",
+          WaterCaustics.renderFullBrightIntensityMetalLiteral),
+         ("\\(WaterCaustics.depthLayerWeightSumMetalLiteral)",
+          WaterCaustics.depthLayerWeightSumMetalLiteral),
+         ("\\(WaterCaustics.depthLayerFocusRatioMetalLiterals[0])",
+          WaterCaustics.depthLayerFocusRatioMetalLiterals[0]),
+         ("\\(WaterCaustics.depthLayerFocusRatioMetalLiterals[1])",
+          WaterCaustics.depthLayerFocusRatioMetalLiterals[1]),
+         ("\\(WaterCaustics.depthLayerFocusRatioMetalLiterals[2])",
+          WaterCaustics.depthLayerFocusRatioMetalLiterals[2]),
+         ("\\(WaterCaustics.depthLayerWeightMetalLiterals[0])",
+          WaterCaustics.depthLayerWeightMetalLiterals[0]),
+         ("\\(WaterCaustics.depthLayerWeightMetalLiterals[1])",
+          WaterCaustics.depthLayerWeightMetalLiterals[1]),
+         ("\\(WaterCaustics.depthLayerWeightMetalLiterals[2])",
+          WaterCaustics.depthLayerWeightMetalLiterals[2])]
     }
 
     /// The shader text exactly as the compiler receives it at runtime.
