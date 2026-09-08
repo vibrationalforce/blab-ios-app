@@ -25995,3 +25995,39 @@ det J = 1 ⇒ Helligkeit exakt 1, also ein gleichmäßig beleuchteter Boden und 
 - **Bewusst NICHT verdrahtet.** Das Einhängen ändert Pixel für jeden Nutzer der Default-Sequenz
   UND verlangt eine Neuherleitung des Blitz-Budgets dieses Looks (eine Kaustik hat schärfere
   zeitliche Extrema als eine Sinus-Summe). Eigene Scheibe.
+
+## #1114 — der Audit-HOCH-Befund, selbst nachgemessen: ein SECHSTER Look käme ohne Blitz-Budget durch, weil die einzige Prüfung per Look von Hand geschrieben ist
+
+**Herkunft:** Linse „safety" des Visual-Deep-Audits (#1113-Zyklus). Ich habe den Befund NICHT
+aus dem Agenten übernommen, sondern selbst gemessen — und dabei präzisiert: die Behauptung
+„der einzige Bibliothek↔Budget-Wächter liegt im nicht-blockierenden Bündel" ist zu grob.
+Wahr ist: `Tests/EchoelmusicTests/FlashGuardTests.swift` (die Tabelle) liegt im
+NICHT-BLOCKIERENDEN Bündel (#208), UND es gibt sehr wohl einen blockierenden Pin — aber
+**nur für die Schale**: `TheWaterDishIsLitLikeTheExperimentTests` Anspruch 7, von #1102 von
+Hand geschrieben, weil dieser Commit wusste, dass ein unbudgetierter Look nach `main` kann.
+**Niemand hat das verallgemeinert.** Ein sechster Look erbt null Schutz.
+
+**Warum jetzt:** #1113 hat genau die Physik eines sechsten Looks in den Baum gelegt. Die Lücke
+vor dem Look zu schließen ist die richtige Reihenfolge.
+
+**Gebaut:** `Tests/CISmoke/EveryLookHasAFlashBudgetTests.swift`, 3 Ansprüche, alle
+GEGENGEWICHTE (grün auf beiden Bäumen — das ist der Zweck): (1) jeder Eintrag von
+`LookBlendMap.library` hat eine Budget-Zeile · (2) jede Zeile wird durch das echte
+`FlashGuard.effectiveFieldHz` neu gerechnet und gegen die WCAG-Decke geprüft — **diese
+Rechnung lief bisher NUR im Bündel, das kein Gate kompiliert** · (3) das einzige symbolische
+Multiplikator-Token ist gepinnt, damit der Parser nicht still weniger abdeckt als er behauptet.
+- **Parser gegen die echte Tabelle transkribiert (#808):** genau 5 Zeilen, keine Fehltreffer,
+  Werte reproduzieren die Kommentare der Tabelle exakt — Rings 2,50 · Water 1,70 · Dish 1,00 ·
+  Aurora 3,00 · Depth 1,80 Hz. Aurora sitzt mit NULL Reserve auf der Decke.
+- **Zwei Grenzen stehen im Kopf, vor dem Anspruch (§1):** dies beweist VOLLSTÄNDIGKEIT und die
+  DECKEN-ARITHMETIK, nicht die Richtigkeit der Herleitung (nur Rings und Dish sind überhaupt
+  an den Shader gebunden); und die A↔B-ÜBERBLENDUNG ist nicht abgedeckt — die Vereinigung
+  zweier Phasenspektren ist nicht das Maximum zweier Budgets, und die Default-Sequenz legt den
+  Null-Reserve-Look genau dort hinein. Eigene Scheibe.
+
+**Nebenbefund, gemessen, NICHT in diesem Commit repariert (kein Batching):** die Zahlen-Tabelle
+in `Tests/CISmoke/CLAUDE.md` ist stark veraltet — sie sagt 284 Dateien / 1 927 `func test` /
+119 `SourceText.codeOnly` / 69 eigene Stripper; die Befehle daneben liefern heute **460 / 3 007
+/ 243 / 77**. Das ist keine kleine Drift, sondern das Vierfache in einem Fall. Nach der
+#818-Lehre gehören die Zahlen GELÖSCHT statt nachgeführt, weil der Befehl schon danebensteht —
+eine eigene Entscheidung an einer fremden Gesetzesdatei, also eine eigene Scheibe.
