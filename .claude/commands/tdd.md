@@ -23,11 +23,12 @@ For DSP/Audio tests:
 - Pre-allocate buffers (simulate audio thread constraints)
 - Test with known input signals (sine waves, impulses)
 
-For AUv3 tests:
-- Test parameter tree addresses
-- Test factory preset loading
-- Test state save/restore round-trip
-- Test render block with mock input
+For the one in-process audio unit (⛔ "For AUv3 tests" until #1112):
+- There is no AUv3 target (removed 2026-07-24, #121 Slice 2) and no parameter tree, factory
+  preset or `fullState` to test — those four bullets tested nothing. The one `AUAudioUnit` is
+  `MonitorInsertAudioUnit` (`Audio/MonitorInsertAU.swift`); the shape that drives its render
+  block end to end is `Tests/CISmoke/TheMonitorInsertCarriesTheNeutralChainTests.swift` —
+  copy that, and pin bit-neutrality (all stages off → output == input) before any audible stage.
 
 ### Step 3: Verify RED — and be honest about what that costs here
 

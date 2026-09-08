@@ -25924,3 +25924,24 @@ grün; kein Wächter pinnt die alten Überschriften.
 - Offen, nächste Scheibe: `commands/multi-plan.md` „Agent 2: AUv3 Shell", `commands/tdd.md`
   „For AUv3 tests"; `routines/_golden-goal.md` ist ein Zitat (Founder-Ziel), kein Befehl.
 - Gates #1110: Xcode 2450 grün, CI/CD 5915 `Build for Testing` grün, Verdict 167 Passes im Fenster.
+
+## #1112 — die zwei Command-Dateien mit demselben AUv3-Defekt wie #1111: `/multi-plan` gab ein Drittel jeder Feature-Arbeit einem Plugin-Agenten, `/tdd` vier Prüfpunkte einem Parameterbaum, den es nicht gibt
+
+**Messung (Zyklus 07:58Z):** Rest der #1111-Liste. `.claude/commands/multi-plan.md` „Default
+Echoelmusic Decomposition / For feature work": `Agent 2: AUv3 Shell — AudioUnit, parameter
+tree, state, presets` (und Agent 3 „ViewController"). `.claude/commands/tdd.md` „For AUv3
+tests": Parameterbaum-Adressen, Factory-Presets, `fullState`-Round-Trip, Render-Block mit Mock —
+`AUParameterGroup`/`fullState` null in `Sources/`, Target seit 2026-07-24 weg (#121 Slice 2).
+Ersetzt: Agent 2 = Kontrollebene (`EngineBus`-Subscriber, `*Store`/Codable,
+`EchoelParameterRegistry` + `ParameterApplyRouter`, `FeatureFlags` — die Fold-in-Zeile aus
+`ultracode-teams`), Agent 3 = SwiftUI-Blatt ohne heißen Vorfahren-Read; `/tdd` zeigt auf
+`MonitorInsertAudioUnit` und `TheMonitorInsertCarriesTheNeutralChainTests` (Bit-Neutralität
+pinnen, bevor eine Stufe hörbar wird). Alle drei genannten Core-Dateien per `git ls-files`
+bestätigt; Doctor B grün; kein Pin auf die alten Phrasen. `routines/_golden-goal.md:6` nennt
+AUv3 in einem FOUNDER-ZITAT (das Ziel, nicht ein Befehl) — bewusst nicht angefasst;
+`commands/verify.md:51` trägt die Rücknahme schon.
+- Damit ist der AUv3-NAME-Grep über `.claude/` geschlossen: `e2e-test-agent` (2026-08-12),
+  drei Agenten (#1111), zwei Commands (#1112). Was bleibt, sind Zitate und Rücknahmen.
+- Kein Gate für #1111/#1112 (`.claude/**` steht in keinem Pfadfilter — gemessen: `ci.yml`,
+  `xcode-compile-check.yml`, `auto-merge-claude.yml`); beide fahren beim nächsten Code-Commit
+  mit nach `main` (#697).
