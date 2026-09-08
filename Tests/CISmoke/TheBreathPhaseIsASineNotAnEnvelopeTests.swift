@@ -138,14 +138,18 @@ final class TheBreathPhaseIsASineNotAnEnvelopeTests: XCTestCase {
             that calling `amplitude` an ENVELOPE was wrong.
             """)
 
-        // Source and contract AGREE at the anchor: the upward crossing is inhale onset and
-        // the contract calls that 0.5. Measured 0.5073 at a 0.1 s tick.
+        // ⛔ #1138 REWROTE THIS COMMENT. It said "the upward crossing is inhale onset and the
+        // contract calls that 0.5", i.e. source and contract AGREE at the anchor. They do not:
+        // the contract's 0.5 is a LABEL (inhale start), the camera's 0.5 is the MIDPOINT of
+        // its own range, which a rising sine passes halfway UP the inhale. Measured, lungs
+        // are full at phase 0.230 after the crossing and empty at 0.730 (claim 5), so the
+        // crossing sits at contract φ 0.770 — the shipped figure was wrong by 97°. The
+        // ASSERTION below is unchanged and still true; only what it was taken to MEAN was not.
         XCTAssertEqual(crossingAmp ?? .nan, 0.5, accuracy: 0.05, """
-            At the upward zero-crossing — inhale onset — `amplitude` reads ~0.5, exactly what \
-            the contract calls inhale start. Source and contract agree at the anchor and \
-            diverge only in SHAPE between anchors. (At the 1 s publish tick the same crossing \
-            reads 0.8565; that is a sampling artefact of the coarse grid, not a second \
-            disagreement.)
+            At the upward zero-crossing `amplitude` reads ~0.5 — the midpoint of its own \
+            range, NOT the contract's inhale start. Claim 5 pins where the lungs actually \
+            are. (At the 1 s publish tick the same crossing reads 0.8565; that is a sampling \
+            artefact of the coarse grid, not a disagreement.)
             """)
     }
 
@@ -211,5 +215,80 @@ final class TheBreathPhaseIsASineNotAnEnvelopeTests: XCTestCase {
             """)
         // #364 in executable form: this guard must never be the reason a fix is refused.
         XCTAssertTrue(true, "honouring the contract is permitted; only the diagnosis is pinned")
+    }
+
+    // MARK: - 5 · Where the lungs actually are, relative to the crossing
+
+    /// ⛔ THIS CLAIM EXISTS BECAUSE #1135 SHIPPED AN OFFSET THAT WAS WRONG BY 97°. It called
+    /// `lastCrossT` "inhale onset" and offered `+0.5`; the camera reading 0.5073 there looked
+    /// like corroboration and was a coincidence of two different 0.5s. Nothing was measured.
+    /// The numbers below are, at a 0.02 s tick on the shipped filter chain, and they are what
+    /// task #30 must build on.
+    func testTheLungExtremesSitAtTheMeasuredPhasesNotTheAssumedOnes() {
+        let trendTau = 8.0, smoothTau = 0.8, envTau = 6.0
+        let dt = 0.02, breathHz = 0.1
+        var trend = 0.0, smooth = 0.0, prev = 0.0, env = 0.0
+        var seeded = false
+        var rec: [(t: Double, a: Double, rising: Bool)] = []
+
+        for i in 0..<60_000 {
+            let t = Double(i) * dt
+            let hr = 70.0 + 4.0 * sin(2 * Double.pi * breathHz * t)
+            if !seeded { trend = hr; seeded = true }
+            trend += (1 - exp(-dt / trendTau)) * (hr - trend)
+            let hp = hr - trend
+            prev = smooth
+            smooth += (1 - exp(-dt / smoothTau)) * (hp - smooth)
+            env += (1 - exp(-dt / envTau)) * (abs(smooth) - env)
+            let norm = Swift.max(-1.0, Swift.min(1.0, smooth / (Swift.max(env, 1e-6) * 1.4)))
+            guard t > 900 else { continue }
+            rec.append((t, 0.5 + 0.5 * norm, prev <= 0 && smooth > 0))
+        }
+
+        let ups = rec.filter { $0.rising }.map { $0.t }
+        guard ups.count >= 2 else { return XCTFail("no two upward crossings in the window") }
+        let period = ups[1] - ups[0], t0 = ups[0]
+        XCTAssertEqual(period, 10.0, accuracy: 0.2, "the driven 6/min cycle must come back out")
+
+        let cycle = rec.filter { $0.t >= t0 && $0.t < t0 + period }
+        func phase(_ t: Double) -> Double { ((t - t0).truncatingRemainder(dividingBy: period)) / period }
+        let top = cycle.filter { $0.a > 0.9999 }.map { phase($0.t) }
+        let bottom = cycle.filter { $0.a < 0.0001 }.map { phase($0.t) }
+        guard let tLo = top.min(), let tHi = top.max(),
+              let bLo = bottom.min(), let bHi = bottom.max() else {
+            return XCTFail("amplitude never reached its clamped extremes")
+        }
+        let fullCentre = (tLo + tHi) / 2, emptyCentre = (bLo + bHi) / 2
+
+        XCTAssertEqual(fullCentre, 0.230, accuracy: 0.02, """
+            Lungs FULL no longer centres at phase 0.230 after the upward crossing. The \
+            sawtooth re-anchoring `((t − lastCrossT)/periodEMA + 0.770) mod 1` is derived \
+            from exactly this number; if it moved, re-derive the offset before task #30 \
+            builds on it, and pull the prose on `EngineBus.breathPhase` with it.
+            """)
+        XCTAssertEqual(emptyCentre, 0.730, accuracy: 0.02, """
+            Lungs EMPTY no longer centres at phase 0.730 — half a cycle after full, as a \
+            breath must be.
+            """)
+        XCTAssertEqual(emptyCentre - fullCentre, 0.5, accuracy: 0.02, """
+            The two extremes are no longer half a cycle apart, which would mean the signal \
+            stopped being one oscillation per breath.
+            """)
+
+        // The shipped `+0.5` against the measured `+0.770`: a quarter-cycle-scale error.
+        let correctOffset = 1.0 - fullCentre
+        XCTAssertEqual(correctOffset, 0.770, accuracy: 0.02, "the re-anchoring offset")
+        XCTAssertGreaterThan(abs(correctOffset - 0.5), 0.2, """
+            The offset shipped by #1135 (0.5) is no longer far from the measured one. If the \
+            filters ever make them agree, the ⛔ retraction on `EngineBus.breathPhase` becomes \
+            wrong prose and must be pulled in the same commit.
+            """)
+
+        // The soft clip is real and is not a defect: the widest frame is HELD, not touched.
+        XCTAssertEqual(tHi - tLo, 0.148, accuracy: 0.02, """
+            The clamped plateau at lungs-full is no longer ~14.8 % of the cycle. `norm` \
+            saturates because of the `/1.4`, so `amplitude` is a soft-clipped sine — stated \
+            here because claim 1 calls it a "sine" and that word alone would hide the flat top.
+            """)
     }
 }

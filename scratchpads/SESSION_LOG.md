@@ -26737,3 +26737,49 @@ discovered later.
 Halved, on a term that was already an amplitude. Aurora's row unchanged.
 
 Guard driven in Python: 14 checks, ALL PASS. Braces/parens balanced.
+
+## #1138 — my own #1135 anchor was wrong by 97°, and it looked like corroboration (2026-09-08)
+
+**#1135 corrected a wrong noun and then built a wrong offset on top of it.** It called
+`lastCrossT` "inhale onset", offered `((t − lastCrossT)/periodEMA + 0.5) mod 1`, and argued
+that because the camera reads **0.5073** at that crossing, "source and contract already AGREE
+on 0.5 = inhale start".
+
+**Two different 0.5s.** The contract's 0.5 is a LABEL (inhale start). The camera's 0.5 is the
+MIDPOINT of its own range, which a rising sine passes halfway UP the inhale. A numeric
+coincidence read as an agreement — the most dangerous kind of wrong, because it looks like
+evidence.
+
+Measured at a 0.02 s tick on the shipped filter chain, phases from the upward crossing:
+
+| | plateau | centre |
+|---|---|---|
+| lungs FULL (amp 1.0) | 0.156…0.304 | **0.230** |
+| lungs EMPTY (amp 0.0) | 0.656…0.804 | **0.730** |
+
+Correct re-anchoring: **φ = ((t − lastCrossT)/periodEMA + 0.770) mod 1**. At the crossing
+φ = 0.770, not 0.5. The shipped figure was off by 0.270 of a cycle = **97° = 2.7 s at 6/min**.
+
+**Nothing had been built on it yet** — task #30 is still pending — which is the only reason
+this cost a doc slice instead of a wrong sawtooth in five consumers.
+
+**Two honesty notes now recorded with the numbers.** (1) 0.770 is EMPIRICAL, not geometric
+0.75: the ~0.02 is `smoothTau` (0.8 s) lagging the high-passed signal, so anyone porting it
+re-derives rather than quotes. (2) The whole mapping rests on `RespirationEstimator`'s own
+assertion that amplitude 1 = lungs full. That is the file's RSA claim, not something measured
+against a real breath here; if it is ever checked on a body and found inverted, the offset
+moves half a cycle and so does every consumer.
+
+**A third finding, from the same measurement:** `amplitude` is a SOFT-CLIPPED sine, not a
+clean one — `norm` saturates at ±1 because of the `/1.4`, so it sits flat for **14.8 %** of
+the cycle at each end. Span, mean and the two 0.5-crossings are unaffected, so #1135's claim 1
+still holds. For the picture it is a feature: the widest frame is HELD briefly at full lungs.
+
+**⭐ THE LESSON, and it is not "measure more".** #1135 DID measure — the span, the mean, the
+crossings, the envelope window. It measured everything except the one quantity its conclusion
+depended on, because a coincidence had already answered that question convincingly. **A number
+that agrees with your hypothesis is where to look hardest, not where to stop.**
+
+New claim 5 in `TheBreathPhaseIsASineNotAnEnvelopeTests` pins all of it: 7 checks, driven in
+Python, ALL PASS. Its 5f asserts the shipped 0.5 stays FAR from the measured offset, so if the
+filters ever make them agree the retraction becomes wrong prose and goes red on purpose.

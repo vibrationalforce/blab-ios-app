@@ -266,12 +266,44 @@ public struct BioSampleFrame: Sendable, Equatable {
     /// no phase at all, so honouring this contract would mean deriving one from scratch. A
     /// normalised sine DOES carry the phase — it merely carries it in the wrong SHAPE — and
     /// the estimator already holds both terms a sawtooth needs: `lastCrossT` (the upward
-    /// zero-crossing, i.e. inhale onset) and `periodEMA` (the smoothed cycle length). The
-    /// repair is `((t − lastCrossT) / periodEMA + 0.5) mod 1`, not a new estimator. Measured
-    /// at a 0.1 s tick the camera value at that crossing is **0.5073**, so source and contract
-    /// already AGREE on "0.5 = inhale start" and diverge only between the anchors. (At the 1 s
-    /// publish tick the same crossing reads 0.8565 — a sampling artefact of the coarse grid,
-    /// not a second disagreement; do not read it as one.)
+    /// zero-crossing of the band-passed pulse) and `periodEMA` (the smoothed cycle length).
+    /// The repair is a re-anchoring of held values, not a new estimator.
+    ///
+    /// ⛔ AND THE FIRST VERSION OF THIS PARAGRAPH GOT THE ANCHOR WRONG BY A QUARTER CYCLE
+    /// (#1135 → #1138). It called `lastCrossT` "inhale onset", offered
+    /// `((t − lastCrossT) / periodEMA + 0.5) mod 1`, and argued that because the camera reads
+    /// **0.5073** at that crossing, "source and contract already AGREE on 0.5 = inhale start".
+    /// Two different 0.5s. The contract's 0.5 is a LABEL (inhale start); the camera's 0.5 is
+    /// the MIDPOINT of its own range, which a rising sine passes halfway UP the inhale. A
+    /// numeric coincidence was read as an agreement — the cheapest kind of wrong, because it
+    /// looks like corroboration.
+    ///
+    /// Measured on the shipped filter chain at a 0.02 s tick, phases counted from the upward
+    /// crossing (`T` = one cycle):
+    ///
+    ///   lungs FULL  (amplitude 1.0) — plateau 0.156…0.304, centre **0.230**
+    ///   lungs EMPTY (amplitude 0.0) — plateau 0.656…0.804, centre **0.730**
+    ///
+    /// This contract puts 0 at exhale start (= lungs full) and 0.5 at inhale start (= lungs
+    /// empty), so the correct re-anchoring is
+    ///
+    ///   φ = ((t − lastCrossT) / periodEMA + 0.770) mod 1
+    ///
+    /// and at the crossing itself φ = 0.770, not 0.5. The shipped figure was off by 0.270 of
+    /// a cycle — **97°, or 2.7 s at 6 breaths/min**, which on a breath is not a detail.
+    ///
+    /// ⚠️ TWO HONESTY NOTES ON THOSE NUMBERS. (1) 0.770 is EMPIRICAL, not the geometric 0.75:
+    /// the ~0.02 offset is `smoothTau` (0.8 s) lagging the high-passed signal. Anyone porting
+    /// this re-derives it against the filters of the day rather than quoting it. (2) The whole
+    /// mapping rests on `RespirationEstimator.amplitude`'s own assertion that 1 = inhale peak
+    /// (lungs full). That is the file's claim about respiratory sinus arrhythmia, not something
+    /// measured against a real breath here. If it is ever checked on a body and found inverted,
+    /// this offset moves by half a cycle and so does every consumer.
+    ///
+    /// ⚠️ AND `amplitude` IS A SOFT-CLIPPED SINE, NOT A CLEAN ONE: `norm` saturates at ±1
+    /// because of the `/1.4`, so it sits flat at each end for **14.8 %** of the cycle. Span,
+    /// mean and the two 0.5-crossings above are unaffected. For the picture this is a feature —
+    /// the widest frame is HELD for a moment at full lungs rather than touched instantaneously.
     ///
     /// ⚠️ CONSEQUENCE FOR ANY CONSUMER THAT APPLIES A SYMMETRIC HUMP. `sin(π · x)` is written
     /// for a ramp. Fed this sine it peaks at MID-breath and falls to zero at BOTH lung
