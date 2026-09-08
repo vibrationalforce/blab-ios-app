@@ -25945,3 +25945,53 @@ AUv3 in einem FOUNDER-ZITAT (das Ziel, nicht ein Befehl) — bewusst nicht angef
 - Kein Gate für #1111/#1112 (`.claude/**` steht in keinem Pfadfilter — gemessen: `ci.yml`,
   `xcode-compile-check.yml`, `auto-merge-claude.yml`); beide fahren beim nächsten Code-Commit
   mit nach `main` (#697).
+
+## #1113 — Founder-Ask „generative and physical association Visuals weiter entwickeln": der „Depth"-Look heißt Kaustik und ist eine Sinus-Summe; das echte Strahlengesetz ist jetzt gepinnt (noch ohne Aufrufer)
+
+**Founder 2026-09-08, wörtlich:** „Deep Audith und vorallem generative and physical association
+Visuals weiter entwickeln." Deep Audit läuft als Workflow (sechs Linsen, jede Behauptung
+adversarial widerlegt); diese Scheibe ist die Bau-Hälfte.
+
+**Gemessen, bevor gebaut wurde.** Die Kill-Liste des Plans hat **Dünnschicht-Interferenz
+getötet** („a rigorous half laundering an arbitrary half" — nichts in der Akustik setzt n, d
+oder θ). Das war mein erster Kandidat für „Farbe als lizenzierter Kanal"; ich habe ihn NICHT
+wiederbelebt. Ebenfalls tot und nicht angefasst: Reaktions-Diffusion, Rayleigh-Bénard,
+Ferrofluid, Doppler, Kundt/Schlieren, Beugung/Airy, akkord-getriebene Faraday-Schale,
+Chladni-als-Sandlinien, zweiter FFT-Pfad, Tiefen-Regler, LUT-Texturen. Plan-Scheibe 1
+(Kapillar-Dispersion für `fieldWater`) ist bereits AUSGELIEFERT (`pow(toneHz/261.63, 0.6666667)`
+steht im Shader, Wächterdatei existiert) — also nicht die offene Lücke.
+
+**Die offene Lücke, gemessen:** `fieldDepthCaustics` (Stil 7, in `defaultSequence` — JEDER
+Nutzer sieht ihn) nennt sich KAUSTIK und rechnet `pow(0.5 + 0.14 * (drei Sinus-Lagen), γ)`.
+Zwei Folgen: der klingende Ton erreicht ihn nie (einzige Längenskala `mix(3.0, 5.0, breath)` —
+exakt der Defekt, den Scheibe 1 aus `fieldWater` entfernt hat), und die hellen Fäden sind
+GEMALT statt HERGELEITET. Eine echte Kaustik ist die Singularität einer Strahlabbildung.
+
+**Was diese Scheibe ist.** `Core/WaterCaustics.swift` (185 Z., Foundation-only, **null
+Produktions-Aufrufer** — die W1-Form von #1100) plus `Tests/CISmoke/TheCausticsObeyRefractionTests.swift`
+(9 Behauptungen, alle FORWARD, kein Urteil auf dem Elternbaum). Drei Gesetze: Snell an fast
+flacher Fläche (Strahlneigung = (1−1/n)·∇h, für Wasser 0,2498 — ein Viertel der Neigung);
+Helligkeit = inverse Jacobi-Determinante der Strahlabbildung (die hellen Fäden SIND det J = 0);
+Fokussiertiefe D = 1/((1−1/n)·a·k²). Eingespeist wird die Fläche, die Echoel schon streng löst:
+`FaradayDish` macht aus dem Ton Wellenzahl und Musterstärke, `MetalBioView` trägt beide schon
+als `dishK`/`dishStrength` zur GPU. Die Schale von oben und das Licht darunter sind damit EIN
+Experiment, zweimal gerendert.
+
+**Gemessene Zahlen (alle 26 Pins durch eine Python-Transkription der Swift-Datei reproduziert,
+#808):** gesättigtes Kräuseln (0,25 mm) unter 200 Hz fokussiert **5,349 mm** tief; eine Oktave
+höher teilt die Tiefe durch 2,565 (gemessen 0,38990 gegen das reine Kapillargesetz 0,39685 —
+die Lücke ist der Schwerkraft-Term, genau wie in `FaradayDish`); Stille ⇒ a = 0 ⇒ φ = 0 ⇒
+det J = 1 ⇒ Helligkeit exakt 1, also ein gleichmäßig beleuchteter Boden und KEIN Leuchten.
+- **Zwei benannte Wahlen, nicht versteckt:** `rippleAmplitudeAtFullPattern` = 0,25 mm (die
+  Faraday-Stärke ist dimensionslos, kein Höhe) und `intensityCeiling` = 8. Letzteres ist eine
+  **Blitz-Sicherheitsgröße**: eine Kaustik ist eine echte Singularität, ein unbegrenztes
+  1/|det| auf einer bewegten Fläche ist eine Voll-Leuchtdichte-Auslenkung. Der Deckel gehört
+  ins Gesetz, nicht in die Hoffnung, dass der Aufrufer klemmt.
+- **Drei Abgrenzungen stehen im Dateikopf**, damit niemand das für eine stille Wiederbelebung
+  hält: nicht der getötete Tiefen-Regler (das war die WASSERTIEFE h in tanh(kh), erwiesen
+  wirkungslos; hier ist D der Abstand Fläche→Boden und streng proportional zu φ) · nicht
+  Beugung/Airy (keine optische Wellenlänge kommt vor; Strahlenoptik ist wellenlängenunabhängig)
+  · nicht Dünnschicht (jede Größe stammt aus schon ausgeliefertem Code).
+- **Bewusst NICHT verdrahtet.** Das Einhängen ändert Pixel für jeden Nutzer der Default-Sequenz
+  UND verlangt eine Neuherleitung des Blitz-Budgets dieses Looks (eine Kaustik hat schärfere
+  zeitliche Extrema als eine Sinus-Summe). Eigene Scheibe.
