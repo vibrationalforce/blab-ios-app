@@ -25896,3 +25896,31 @@ pinnt eine der Phrasen; moved-needles: kein Treffer.
   nirgends —, `multi-plan` „Agent 2: AUv3 Shell", `tdd.md` „For AUv3 tests"); nur
   `e2e-test-agent` bekam 2026-08-12 die Rücknahme. Zwei Scheiben (Agents, dann Commands).
 - Gates #1109: Xcode 2449 grün, CI/CD 5914 `Build for Testing` grün, Verdict 167 Passes im Fenster.
+
+## #1111 — drei Agent-Dateien schrieben AUv3-Arbeit vor, die seit 2026-07-24 kein Ziel hat; eine davon zusätzlich vierzehn Testdateien, von denen zehn nie existierten
+
+**Messung (Zyklus 06:58Z):** `git grep AUv3 -- .claude`, Rücknahme-Zeilen ausgeschlossen. Nur
+`e2e-test-agent` trug die Rücknahme (2026-08-12). Drei Agenten nicht: `planning-agent`
+„Plugin Architecture Patterns" (`.appex`, `AUParameterGroup`, `AUViewController`, `fullState`,
+`pullInputBlock` — die drei Typnamen kommen in `Sources/` **null**mal vor), `security-agent`
+„Audio Plugin Security" (`sandboxSafe: true` — **null** Vorkommen im ganzen Repo; `fullState`;
+Parameterbaum), `tdd-agent` „AUv3 Integration Tests" mit `EchoelVoiceAudioUnit(componentDescription:)`
+— der Typ existiert nirgends, ein daraus geschriebener Test kompiliert nicht, und hier sagt es
+niemand vor CI. **Präzise Hälfte, damit die Rücknahme nicht selbst übertreibt:** ein
+`AUAudioUnit` EXISTIERT — in-process, kein Plugin: `MonitorInsertAudioUnit`
+(`Audio/MonitorInsertAU.swift`, #832/#839, `internalRenderBlock` real, türlos seit #1024,
+Wächter `TheMonitorInsertCarriesTheNeutralChainTests`). Die e2e-Rücknahme vom 2026-08-12
+(„`internalRenderBlock` … once … prose in a comment") ist in DIESEM Detail überholt, weil
+#832 danach kam — nicht angefasst, dort steht ein Datum; die drei neuen Blöcke nennen die AU.
+Im selben `tdd-agent`: „Test Categories (from CLAUDE.md)" listete 14 Dateinamen, **10 fehlen**
+(`git ls-files 'Tests/**/<Name>.swift'`) — dieselbe Liste, die CLAUDE.md unter KEY TESTS mit
+„do not reintroduce it" gestrichen hat; der Agent hatte sie wieder eingeführt. Ersetzt durch
+den `git ls-files`-Befehl und den Zeiger auf die zwei Suiten. Doctor B (Pfade in Backticks)
+grün; kein Wächter pinnt die alten Überschriften.
+- Lehre: **Konzept-Drift in Agent-Prompts ist präskriptiv** — ein Kommentar in `Sources/`
+  beschreibt falsch, ein Agent-Prompt ordnet falsch AN. `e2e-test-agent` hat das 2026-08-12 für
+  sich selbst festgestellt („no automated check … can see it"); drei Nachbarn mit demselben
+  Defekt blieben vier Wochen stehen, weil niemand den NAMEN über das Verzeichnis grept.
+- Offen, nächste Scheibe: `commands/multi-plan.md` „Agent 2: AUv3 Shell", `commands/tdd.md`
+  „For AUv3 tests"; `routines/_golden-goal.md` ist ein Zitat (Founder-Ziel), kein Befehl.
+- Gates #1110: Xcode 2450 grün, CI/CD 5915 `Build for Testing` grün, Verdict 167 Passes im Fenster.

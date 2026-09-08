@@ -69,13 +69,19 @@ date,decision,reasoning,expected_outcome,review_date,status
 - `os_log` only (never print)
 - Conventional commits, one change per commit
 
-## Plugin Architecture Patterns
-- AUv3 plugins: standalone app extension (.appex)
-- DSP kernels: `final class`, `nonisolated(unsafe)` parameters
-- Parameter tree: grouped (`AUParameterGroup`), addressed via enum
-- UI: `AUViewController` hosting SwiftUI via `UIHostingController`
-- State: `fullState` dictionary for host save/restore
-- Rendering: `internalRenderBlock` pulling input via `pullInputBlock`
+## Audio-unit patterns (⛔ "Plugin Architecture Patterns" until #1111)
+- DSP kernels: `final class`, `nonisolated(unsafe)` parameters — still the law.
+- ⛔ **There is NO AUv3 extension target to plan for.** Five lines stood here prescribing an
+  `.appex`, an `AUParameterGroup` tree, an `AUViewController` host, a `fullState` dictionary
+  and a `pullInputBlock` render. The target went 2026-07-24 (#121 Slice 2; `project.yml`
+  declares five targets, none an extension), and `AUParameterGroup` / `AUViewController` /
+  `fullState` occur **zero** times in `Sources/`. A plan built on those lines plans a
+  product that does not exist — `e2e-test-agent` carries the same retraction since 2026-08-12.
+- What DOES exist, and is the only AudioUnit shape to plan against: ONE in-process
+  `AUAudioUnit` subclass, `MonitorInsertAudioUnit` (`Audio/MonitorInsertAU.swift`, #832/#839)
+  on the microphone monitor rail — a graph node, not a plugin, and doorless since #1024.
+  Its `internalRenderBlock` is real; `Tests/CISmoke/TheMonitorInsertCarriesTheNeutralChainTests.swift`
+  drives it. Measure before extending: `git grep -n "class .*: AUAudioUnit" -- Sources`.
 
 ## Parallel Agent Strategy
 For large tasks, recommend 3-agent parallel audits:

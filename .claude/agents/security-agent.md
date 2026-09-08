@@ -24,13 +24,18 @@ HealthKit compliance, and audio plugin safety.
 - Permission denial handled gracefully (fallback mode)
 - Apple Watch HR latency (4-5s) acknowledged — NO beat-sync
 
-### 3. Audio Plugin Security
-- AUv3 sandbox: verify `sandboxSafe: true` in Audio Components
+### 3. Audio-thread security (⛔ "Audio Plugin Security" until #1111)
 - No network access from audio render thread
 - No file system access from audio render thread
 - App Group data encrypted at rest
-- State serialization (`fullState`) sanitizes input values
-- Parameter ranges enforced (min/max in parameter tree)
+- ⛔ Three checks stood here for an AUv3 plugin that does not exist: `sandboxSafe: true` in
+  Audio Components (**zero** occurrences anywhere in the repo), `fullState` sanitisation
+  (**zero** in `Sources/`) and "parameter ranges in the parameter tree" (there is no
+  `AUParameterGroup`). The extension target went 2026-07-24 (#121 Slice 2). A scan that
+  reports ✅ on them reports on nothing. The one `AUAudioUnit` in the tree is the in-process
+  `MonitorInsertAudioUnit` (`Audio/MonitorInsertAU.swift`) — audit ITS render block against
+  the two render-thread rules above; the parameter-range law for everything else is
+  `clamped(to:)` at the DSP boundary (`Core/FloatingPointClamp.swift`).
 
 ### 4. Input Validation
 - All user inputs validated at system boundaries

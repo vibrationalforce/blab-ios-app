@@ -54,22 +54,16 @@ func testCoherenceToHarmonicity() {
 }
 ```
 
-### AUv3 Integration Tests
-```swift
-// Test pattern for Audio Unit lifecycle
-func testAudioUnitInitialization() throws {
-    let desc = AudioComponentDescription(
-        componentType: kAudioUnitType_Effect,
-        componentSubType: fourCharCode("evoc"),
-        componentManufacturer: fourCharCode("Echo"),
-        componentFlags: 0, componentFlagsMask: 0
-    )
-    let au = try EchoelVoiceAudioUnit(componentDescription: desc)
-    XCTAssertNotNil(au.parameterTree)
-    XCTAssertEqual(au.inputBusses.count, 1)
-    XCTAssertEqual(au.outputBusses.count, 1)
-}
-```
+### Audio-unit tests (⛔ "AUv3 Integration Tests" until #1111)
+⛔ A fourteen-line pattern stood here constructing `EchoelVoiceAudioUnit(componentDescription:)`
+with `fourCharCode("evoc")` and asserting on `parameterTree` / `inputBusses`. **That type
+occurs zero times in `Sources/` or `Tests/`**, and the AUv3 extension target it belonged to
+went 2026-07-24 (#121 Slice 2). A test written from that pattern would not compile, and this
+repo has no local compiler to say so before CI. The ONE `AUAudioUnit` in the tree is the
+in-process `MonitorInsertAudioUnit` (`Audio/MonitorInsertAU.swift`, #832/#839); the pattern
+that actually exercises its render block, end to end, is
+`Tests/CISmoke/TheMonitorInsertCarriesTheNeutralChainTests.swift` — copy THAT shape, not a
+memory of an AUv3 checklist.
 
 ## Rules
 - NEVER skip the RED step
@@ -81,8 +75,13 @@ func testAudioUnitInitialization() throws {
 - Performance tests: use `measure {}` blocks with baselines
 - Use `XCTAssertEqual` with `accuracy:` for floating-point DSP values
 
-## Test Categories (from CLAUDE.md)
-- CoreSystemTests, DSPTests, VDSPTests, AudioEngineTests
-- AdvancedEffectsTests, MIDITests, RecordingTests
-- BusinessTests, ExportTests, VideoTests, SoundTests
-- VocalAndNodesTests, HardwareThemeTests, IntegrationTests
+## Test files — measure, do not recite (⛔ "Test Categories (from CLAUDE.md)" until #1111)
+⛔ Fourteen file names stood here, and **ten of them do not exist** (`git ls-files
+'Tests/**/<Name>.swift'` → nothing for AdvancedEffectsTests, MIDITests, RecordingTests,
+BusinessTests, ExportTests, VideoTests, SoundTests, VocalAndNodesTests, HardwareThemeTests,
+IntegrationTests). CLAUDE.md's KEY TESTS section retired the same list — *"named 11 files that
+never existed — do not reintroduce it"* — and this agent had reintroduced it. Two suites exist:
+`Tests/CISmoke` (the BLOCKING bundle — how a guard is written and graded is in
+`Tests/CISmoke/CLAUDE.md`) and `Tests/EchoelmusicTests` (non-blocking, #208). List either with
+`git ls-files 'Tests/<Suite>/*.swift'`; the highest-value areas by name are in CLAUDE.md
+under KEY TESTS.
