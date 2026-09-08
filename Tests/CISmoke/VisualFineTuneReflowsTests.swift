@@ -167,8 +167,9 @@ final class VisualFineTuneReflowsTests: XCTestCase {
             an `AdaptiveCardGrid` in `visualAdjustFields` passes something other than the \
             `spacing` PARAMETER: \(call.trimmingCharacters(in: .whitespaces))
 
-            This ViewBuilder has two hosts with different container spacings (14 in `EchoelPanel`, \
-            8 in `visualVJOverlay`). In one column the grid's spacing REPLACES the host's, so a \
+            This ViewBuilder had two hosts with different container spacings (14 in `EchoelPanel`, \
+            8 in `visualVJOverlay` until #1069 deleted the overlay). In one column the grid's \
+            spacing REPLACES the host's, so a \
             literal here silently re-spaces one of the two surfaces in portrait — where nothing \
             reflows and there is therefore no benefit to pay for.
             """)

@@ -2650,9 +2650,10 @@ struct EchoelStudioView: View {
     /// to their existing sheet slots. Reads only low-frequency @State.
     /// Shell v3 (founder 2026-07-12): the studio bar keeps only the INSTRUMENT
     /// panels. Master/Export/Live/Learn moved to the chrome next to the lock
-    /// (TransportBar door buttons); the Plugins chip dissolved — AUv3 access
-    /// lives on the track doors (ArrangeTimelineView, since 07810ba). The
-    /// .master/.export dropdown cases stay: the chrome doors open them.
+    /// (TransportBar door buttons — ⛔ that bar is dissolved since #456, the doors came back
+    /// INTO the instrument, #1107); the Plugins chip dissolved — AUv3 access lived on the
+    /// track doors (ArrangeTimelineView, since 07810ba; ⛔ both went with #121, Slices 2/4).
+    /// The .master/.export dropdown cases stay: their doors open them.
     // Chip-bar simplification (founder 2026-07-14, red-pen pass):
     //  · .bio     → the Bio section's home is now the HEADER leaf (tap = full detail);
     //               it no longer lives as a bottom chip too (no double home).
@@ -2660,7 +2661,8 @@ struct EchoelStudioView: View {
     //               and state are gone (it was already unreachable / always 0).
     //  · .composition → chip REMOVED (step 2b, 2026-07-17): genre/key/scale/tone
     //               system/A4 live in the header CompositionHeaderStrip, THE tempo
-    //               control in the TransportBar; the residual tempo tools +
+    //               control in `startControlRow` (⛔ "in the TransportBar" until #1107);
+    //               the residual tempo tools +
     //               variation maze open via the transport "•••" door ("tempo"),
     //               same chrome-door-only pattern as Master/Export.
     //  · .session → chip REMOVED (step 2c, 2026-07-17), re-added by #290, and the CASE
@@ -3806,8 +3808,9 @@ struct EchoelStudioView: View {
 
     /// Step 2b (2026-07-17, PLAN_DISSOLVE_BOTTOM_BAR): the Composition panel's
     /// musical identity moved UP into the chrome — genre/key/scale/tone system/A4
-    /// live in `CompositionHeaderStrip` (WorkspaceView), THE tempo control in the
-    /// TransportBar's `BodyTempoField` (their edits arrive via
+    /// live in `CompositionHeaderStrip` (WorkspaceView), THE tempo control in
+    /// `startControlRow`'s `BodyTempoField` (⛔ "the TransportBar's" until #1107 — #411 moved
+    /// the field into this view, #456 dissolved the bar; their edits arrive via
     /// `.echoelCompositionEdited` → `handleCompositionEdit`). What remains here
     /// are the tempo TOOLS (tap · metronome · haptic beat) and the variation
     /// maze — reachable via the transport "•••" door (chrome door "tempo"),
@@ -4329,7 +4332,8 @@ struct EchoelStudioView: View {
 
     // (Step 2b: tuningRow / genrePicker / tonartRow / kammertonRow / tempoRow moved
     // verbatim into the chrome — CompositionHeaderStrip owns the Pickers/A4 field,
-    // the TransportBar's BodyTempoField the tempo; their audible side effects run in
+    // `startControlRow`'s BodyTempoField the tempo (⛔ "the TransportBar's" until #1107,
+    // see the doc above); their audible side effects run in
     // handleCompositionEdit below. tuningRow's conditional retune hint text fell
     // with it; nonStandardTuningBanner keeps the full explainer — and since #325
     // (2026-08-02) it is MOUNTED again, as the first child of `soundPanel`. It sat
@@ -6476,9 +6480,11 @@ struct EchoelStudioView: View {
     /// width, on the same `AdaptiveCardGrid` primitive as `soundPanel` and `moodPanel`.
     ///
     /// ⭐ `spacing` IS A PARAMETER AND HAS NO DEFAULT, and that is the whole design of this
-    /// slice rather than a detail. This ViewBuilder has TWO hosts with DIFFERENT container
+    /// slice rather than a detail. This ViewBuilder HAD two hosts with DIFFERENT container
     /// spacings — `visualPanel` renders inside `EchoelPanel` (`spacing: 14`) and
-    /// `visualVJOverlay` inside its own `VStack(spacing: 8)`. In ONE column an
+    /// `visualVJOverlay` rendered it inside its own `VStack(spacing: 8)` until #1069 deleted
+    /// the overlay (⛔ present tense until #1107; ONE caller today, the argument stays because
+    /// the next host will differ again). In ONE column an
     /// `AdaptiveCardGrid` renders a `VStack` whose spacing REPLACES the host's, so any fixed
     /// literal here would silently re-space one of the two surfaces in PORTRAIT — the primary
     /// surface, which does not reflow at all and would therefore pay the whole cost for none
@@ -9216,7 +9222,7 @@ struct EchoelStudioView: View {
             EchoelCrashLog.breadcrumb("start: silent roll slot healed (cause: \(cause.rawValue))")
         }
         running = true
-        bus.setInstrumentRunning(true)   // chrome mirror (TransportBar pulse button)
+        bus.setInstrumentRunning(true)   // chrome mirror (PlaybackToggleButton; ⛔ "TransportBar" until #1107)
         // NO forced visual anymore (founder 2026-07-12: "Visuals Fenster muss
         // nicht direkt angehen beim Biofeedback. Ein Hinweis kommt ja über das
         // Monitor Fenster oben rechts."): Start no longer stages the fullscreen
@@ -9386,7 +9392,7 @@ struct EchoelStudioView: View {
         // i.e. a session that refuses to end with the camera still live. Cheap and total.
         _ = pianoRoll.consumePlaybackOnlyStopRequest()
         running = false
-        bus.setInstrumentRunning(false)  // chrome mirror (TransportBar pulse button)
+        bus.setInstrumentRunning(false)  // chrome mirror (PlaybackToggleButton; ⛔ "TransportBar" until #1107)
         tempoSeededFromBody = false      // next take re-seeds tempo from a fresh pulse
         lastGenBody = nil                // next Start re-captures a fresh body baseline (evolve hold)
         startTask?.cancel(); startTask = nil

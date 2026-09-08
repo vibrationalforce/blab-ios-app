@@ -25809,3 +25809,25 @@ sind in `Sources/` sauber — nur Grabsteine und die lebende Datei `RoutePlugInW
   diese Zeile in der iPad-Runde mit; heute wäre es ein unsichtbarer Pixel-Eingriff ohne Auge.
 - `VisualFineTuneReflowsTests`' Kopf erzählt die 560-Kappe des gelöschten `visualVJOverlay` als
   GESCHICHTE („this slice adds a second host") — stehen gelassen, Sweep 1 hat ihn grün gelesen.
+
+## #1107 — der NAME-Grep über zwölf ältere Löschungen: `TransportBar` (#456), `ArrangeTimelineView` (#121), `visualVJOverlay` (#1069) standen noch als Gegenwart in sieben Dateien
+
+**Messung (Zyklus 02:58Z):** `git grep -E` über `Sources/` nach zwölf gelöschten Typnamen, Rücknahme-
+Zeilen ausgeschlossen. `BrowserView`/`SampleBrowserView`/`FileWaveformView`: 0. `PatchEditorView`,
+`PianoRollView`, `TimelineAutomationRow`, `DrumSynthVoice`, `ChannelRackView`, `ClipView`: nur
+Geschichte („ported from", „had zero instantiations"). Präsens-Behauptungen: **`TransportBar`**
+(gelöscht #456, 2026-08-07 — ein MONAT): `EngineBus` („Lets the chrome (TransportBar's pulse
+button)"), `EchoelStudioView` ×5 (die Tempo-Doc ×2 „THE tempo control in the TransportBar's
+`BodyTempoField`", die Shell-v3-Doc „TransportBar door buttons", zwei `// chrome mirror`-Kommentare
+an den Start/Stop-Pfaden), `EchoelmusicApp` („THIS runs the exact TransportBar stop cascade");
+**`ArrangeTimelineView`** (gelöscht #121 Slice 4): `MediaLibrary` (Konsumenten-Liste),
+`TimelineRegionPlayer` (Leser-Liste), die Shell-v3-Doc („AUv3 access lives on the track doors" —
+AUv3-Hosting selbst ging mit #121 Slice 2); **`visualVJOverlay`** (gelöscht #1069): die
+`visualAdjustFields`-Doc („TWO hosts") — gemessen EIN Aufrufer —, die Fehlermeldung in
+`VisualFineTuneReflowsTests`, **und CLAUDE.md** („8 im `visualVJOverlay`, das dieselbe Definition
+rendert", im iPad-Reflow-Absatz). Alle mit ⛔ auf die heutigen Heimaten gezogen
+(`PlaybackToggleButton`/`startControlRow`, Master/Export-Chips, ein Wirt). CLAUDE.md 149.231 →
+149.236 B (Decke 150.000; der Wächter pinnt die eine Datei). `moved-needles.py`: 0.
+- **Lehre, verschärft:** #1104–#1106 fanden Prosa vom Vortag; DIESE Stellen sind einen Monat alt.
+  Ein Löschen ohne NAME-Grep altert nicht ein bisschen, es altert, bis jemand sucht. Die vier
+  Sweeps zusammen: 28 Stellen in 13 Dateien (Sources + Tests + CLAUDE.md).

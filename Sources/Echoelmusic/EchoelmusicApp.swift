@@ -906,8 +906,9 @@ struct EchoelmusicApp: App {
                 }
                 // HIG: unplugging headphones pauses playback instead of resuming on
                 // the loudspeaker. The engine's route-loss recovery only re-wires the
-                // graph (silent once stopped); THIS runs the exact TransportBar stop
-                // cascade so every player/voice releases through the proven path.
+                // graph (silent once stopped); THIS runs the exact ■ stop cascade (⛔ "the
+                // TransportBar stop cascade" until #1107 — the bar is dissolved since #456, the
+                // ■ lives in `startControlRow`) so every player/voice releases through the proven path.
                 // The timeline half of this cascade is gone with ▶'s arrangement branch
                 // (`TransportBar.toggle`): `TimelineRegionPlayer.isPlaying` has one write
                 // site and no production caller reaches it, so the old two-branch form was

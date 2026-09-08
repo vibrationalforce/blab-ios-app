@@ -626,8 +626,9 @@ public final class EngineBus {
     public private(set) var latestBioEvent: BioEvent?
 
     /// LOW-frequency run state of the bio-generative instrument (Start/Stop, set by
-    /// the studio's start/stop paths). Lets the chrome (TransportBar's pulse button)
-    /// mirror the instrument state without coupling to the studio view — modules
+    /// the studio's start/stop paths). Lets the chrome mirror — today `PlaybackToggleButton`
+    /// in `EchoelStudioView.startControlRow` (⛔ "TransportBar's pulse button" until #1107;
+    /// #456 dissolved that bar) — follow the instrument state without coupling to the studio view — modules
     /// couple only via the bus. `private(set)` + mutator so no future module can
     /// turn it into a high-frequency churn source — it must stay Start/Stop-only
     /// (any body may read it under the freeze rule ONLY because of that).

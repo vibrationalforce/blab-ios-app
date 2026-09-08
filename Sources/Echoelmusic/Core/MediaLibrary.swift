@@ -66,7 +66,8 @@ public enum MediaLibrary {
     /// Resolve a clip's `mediaRef` to an EXISTING file URL — nil for empty refs or
     /// truly vanished files. THE single resolver for every surface that turns a
     /// region into playable media (timeline audition, audio lanes, the Video
-    /// Monitor, ArrangeTimelineView). Handles all conventions:
+    /// Monitor; ⛔ "ArrangeTimelineView" stood in this list until #1107 — deleted by
+    /// #121 Slice 4). Handles all conventions:
     /// 1. an absolute path that still exists (timeline imports, pre-update),
     /// 2. H6 re-rooting: an absolute path whose CONTAINER PREFIX died — an app
     ///    update/device migration changes the app-group container UUID, but the

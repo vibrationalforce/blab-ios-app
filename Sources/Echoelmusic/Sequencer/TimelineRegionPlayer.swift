@@ -56,7 +56,8 @@ public final class TimelineRegionPlayer {
     public private(set) var isPlaying = false
     /// Absolute song tick sounding now. Updated every transport step (~8 Hz while
     /// playing). `@ObservationIgnored` (audit LOW, freeze-law): today every reader is
-    /// an imperative one-shot (play/seek handlers in WorkspaceView/ArrangeTimelineView),
+    /// an imperative one-shot (play/seek handlers in WorkspaceView; ⛔ "/ArrangeTimelineView"
+    /// stood here until #1107 — that view went with #121 Slice 4),
     /// so nothing observes it — shielding is behavior-identical AND removes the
     /// landmine where a future body read (e.g. a naive playhead) would register the
     /// whole view as an 8 Hz observer and tear down any open `.menu` Picker (the
