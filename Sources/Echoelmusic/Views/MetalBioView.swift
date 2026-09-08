@@ -614,6 +614,21 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
     /// is one bump; above ~110 a period is under 0.057 units (~35 px on a phone width) and
     /// the net samples into moiré. Physics stops patterning long before the ceiling matters.
     private static let dishKRange: ClosedRange<Float> = 3 ... 110
+    /// What `breath` becomes when a frame carries NO measured respiration (#1133).
+    ///
+    /// The SAME value the no-frame branch already hands the shader, so a body without a
+    /// breath sensor and no body at all render identically — the argument
+    /// `coherenceForSound` makes for its own channel, applied here. It is chosen for the
+    /// SHAPED value, not for the raw phase: through the `sin(π·x)` hump, `0.5` lands the
+    /// shader's `spread` on 1.025 (its dial's own neutral is 1.0) and Aurora's swell on
+    /// 0.90, i.e. mid-scale on both consumers.
+    ///
+    /// ⛔ IT IS NOT `breathPhaseForSound`, AND THAT NEAR-MISS IS THE POINT. That accessor
+    /// also returns 0.5 when unmeasured — but it returns a PHASE, and this call site feeds
+    /// phases through the hump, where 0.5 maps to `sin(π/2) = 1.0`: the widest spread and
+    /// the fullest swell, an extreme rather than a rest. Reusing the audio accessor here
+    /// would have looked like the fix and swapped one wrong extreme for the other.
+    private static let neutralVisualBreath: Float = 0.5
     private var reduceMotion = false
     /// Last `framebufferOnly` value written to the MTKView. Writing the property EVERY frame
     /// (even to the same value) reconfigures the drawable/CAMetalLayer and made the picture
@@ -1133,8 +1148,36 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
                    // the wrap"). ⛔ That view was deleted by #475, so this is a NAMED
                    // precedent with no code to open; the reasoning stands on its own.
                    // The idle fallback is already a wrap-free sine; keep it raw.
-                   breath: bio.map { sin(Float.pi * min(max($0.breathPhase, 0), 1)) }
-                       ?? (idle ? idleBreath : 0.5),
+                   //
+                   // ⭐ #1133 — AND THE SHAPING WAS APPLIED TO AN UNGATED VALUE, WHICH IS
+                   // THE DEFECT `breathPhaseForSound` ALREADY FIXED ON THE AUDIO SIDE.
+                   // `breathPhase` has NO unknown sentinel of its own — 0 is a real
+                   // position (exhale start) — so the gate must be `hasMeasuredBreath`,
+                   // and `EngineBus` says in as many words that "anything DISPLAYING a
+                   // breath value must gate on this". Three sound consumers do
+                   // (`BioReactiveSynthVoice`, `PolySynthVoice`, `AlwaysOnBioChannel`);
+                   // this was the one live VISUAL consumer and it read raw.
+                   //
+                   // WHAT IT COST, measured at the publishers: `PolarH10BioPublisher` and
+                   // `FaceExpressionBioPublisher` write the literal `breathPhase: 0`
+                   // always — neither derives respiration at all — and the camera's
+                   // pulse-hold republish forwards a held phase with `breathRate: 0`.
+                   // Through `sin(π·0) = 0` the shader then sat at `spread` 0.85 and
+                   // Aurora's swell at its floor 0.80, PERMANENTLY, for a fully wired
+                   // real source: the picture frozen at full exhale, and nothing on
+                   // screen distinguishable from a performer who never inhales.
+                   //
+                   // WHY 0.5 AND NOT THE ACCESSOR'S OWN NEUTRAL. Feeding
+                   // `breathPhaseForSound` (0.5 when unmeasured) through the hump gives
+                   // `sin(π/2) = 1.0` — the OTHER extreme (spread 1.20, the widest). The
+                   // neutral has to be chosen for the SHAPED value, so the gate skips the
+                   // shaping and hands over the same 0.5 the no-frame branch below
+                   // already uses. Both absences then render identically, which is the
+                   // exact argument `coherenceForSound` makes one field up.
+                   breath: bio.map { $0.hasMeasuredBreath
+                                     ? sin(Float.pi * min(max($0.breathPhase, 0), 1))
+                                     : Self.neutralVisualBreath }
+                       ?? (idle ? idleBreath : Self.neutralVisualBreath),
                    toneHz: liveTone,
                    // Energy interlocks with what actually SOUNDS: fingers pump touchE,
                    // the generative music adds its live master level — the picture

@@ -26605,3 +26605,52 @@ ist; ein Glätter ist ein Teil der Abbildung, nicht ein Detail dahinter.
 Gates zu #1131 (453c2b10) im selben Zyklus gelesen: Xcode Compile Check ✅, CI/CD
 „Build for Testing" ✅ (der neue Wächter kompiliert), „Run Tests" lief noch — namentlich also
 weiter UNBEWIESEN, nicht grün.
+
+## #1133 — der eine lebende Bild-Leser des Atems war ungegated, und zwei ausgelieferte Quellen froren das Bild damit auf voller Ausatmung ein (2026-09-08)
+
+`BioSampleFrame.breathPhase` hat **kein eigenes Unbekannt-Sentinel** — 0 ist eine echte
+Position (Ausatem-Start) —, also muss jeder Verbraucher auf `hasMeasuredBreath` gaten.
+`EngineBus` sagt das wörtlich: *"anything DISPLAYING a breath value must gate on this."*
+Drei KLANG-Verbraucher tun es über `breathPhaseForSound`. Der Renderer — der EINZIGE lebende
+BILD-Verbraucher (der zweite, `BioVisualParams.spread`, ist seit #1131 nachweislich tot) — las
+roh und formte mit `sin(π·x)`.
+
+**Was das auf einem ausgelieferten Pfad gekostet hat.** `PolarH10BioPublisher` und
+`FaceExpressionBioPublisher` schreiben auf JEDEM Frame das Literal `breathPhase: 0` — keiner
+von beiden leitet Atmung ab —, und der Puls-Halte-Republish der Kamera reicht eine gehaltene
+Phase mit `breathRate: 0` weiter. Durch den Hügel wird 0 zu 0: `spread` klebte bei 0,85 (dem
+schmalsten Wert), Auroras Swell bei 0,80 (seinem Boden), **dauerhaft, für eine voll
+verdrahtete echte Quelle**. Das Bild stand auf voller Ausatmung, und nichts auf dem Schirm
+konnte das sagen. Exakt der Defekt, für den `breathPhaseForSound` auf der Audio-Seite
+geschrieben wurde — die #496/#1131-Form: ein Kanal korrigiert, sein Nachbar nicht.
+
+⛔ **Und die naheliegende Reparatur wäre die falsche gewesen — Anspruch 3 beweist es.**
+`breathPhaseForSound` liefert bei ungemessen ebenfalls 0,5, sieht also aus wie die Lösung —
+aber es liefert eine PHASE, und diese Aufrufstelle schickt Phasen durch den Hügel, wo 0,5 zu
+`sin(π/2) = 1,0` wird: der WEITESTE Spread und der VOLLSTE Swell. Ein Extrem gegen das andere
+getauscht. Der Neutralwert muss für den GEFORMTEN Wert gewählt werden, also überspringt das
+Gate die Formung und reicht dieselbe 0,5 durch, die der Kein-Frame-Zweig ohnehin benutzt —
+beide Abwesenheiten rendern identisch, genau das Argument von `coherenceForSound` ein Feld
+höher. Gemessen: spread(0,5) = 1,025 gegen den Reglerneutralwert 1,0; die zwei Extreme liegen
+bei 0,85 und 1,20.
+
+⚠️ **EIN ZWEITER DEFEKT AUF DERSELBEN ZEILE, BEWUSST NICHT ANGEFASST.** Auf dem Kamerapfad
+trägt `breathPhase` `RespirationEstimator.amplitude` — eine HÜLLKURVE (1 = Einatem-Spitze,
+0,5 = Mitte, 0 = Ausatem-Tiefe), nicht den Sägezahn, den der Vertrag des Feldes verspricht.
+`EngineBus` dokumentiert das seit vor diesem Commit und nennt es „pre-existing, tracked
+separately". Durch den Hügel hat eine Hüllkurve ihr Maximum in der MITTE des Atems und fällt
+an BEIDEN Enden auf null — der Swell läuft also mit doppelter Atemfrequenz und ist am
+dunkelsten, wenn die Lunge voll ist. Das ist eine Vertrags-Entscheidung, kein Gate, und
+gehört in eine eigene Scheibe. **Dem Founder gegenüber ist das eine Präzisierung zur
+460er-Notiz**: „der Vorhang kommt und geht mit Deinem Atem" bleibt wahr, „er schwillt beim
+Einatmen" wäre falsch.
+
+Blitz-Sicherheit unberührt: Atem ist ein ≤0,5-Hz-Körpersignal, verdoppelt ≤1 Hz, und es sitzt
+auf einer AMPLITUDE, nicht auf einem phasetragenden Term — Auroras Zeile (0,70 / 1,75 Hz)
+bleibt unverändert.
+
+Vier Ansprüche in Python gegen den echten Baum transkribiert, alle grün (3 Nadeln + 2
+Neutral-Pins + 5 Arithmetik-Prüfungen + 6 Gegengewichte). Kamerabenutzer mit gemessenem Atem
+sehen einen bit-identischen Ausdruck; geändert wird nur, was vorher am Extrem klebte.
+NEEDS-FOUNDER-VERIFY: mit dem Brustgurt (misst nie Atem) soll das Bild jetzt mittig ruhen
+statt am schmalsten und dunkelsten.
