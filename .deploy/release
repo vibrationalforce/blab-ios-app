@@ -1,6 +1,70 @@
-build: v10.79.462 — Dein Bild atmet jetzt richtig herum: weit bei voller Lunge, schmal bei leerer
+build: v10.79.463 — Der Beamer kann keinen abgeschalteten Look mehr zeigen (Blitz-Sicherheit)
 branch: claude/echoelmusic-neustart-auv3-6ri2ek (tokenless deploy via .deploy/release bump)
 notes: |
+  ⚠ AN DIE NÄCHSTE SESSION: die Versionsnummer in Zeile 1 MUSS die erste im ganzen File
+  sein. CI greift mit `grep -m1 -oE 'v[0-9]+\.[0-9]+\.[0-9]+'` über die GESAMTE Datei und
+  nimmt den ersten Treffer. Deshalb stehen die Vorgänger unten ohne `v`.
+  Wächter im blockierenden Bundle: `TheShippedVersionComesFromTheReleaseFileTests` (#635).
+
+  Der Vorgänger ist 10.79.462.
+
+  ── 1. DER BEAMER KONNTE EIN BILD ZEIGEN, DAS ZU SCHNELL BLINKT ──────────
+
+  **Das ist eine Sicherheits-Korrektur, und sie betrifft die größte Fläche im Raum.**
+
+  Beim Start räumt die App eine alte Einstellung auf: wenn Dein gespeicherter Look
+  inzwischen abgeschaltet ist, springt sie auf einen gültigen. Dieses Aufräumen war
+  versehentlich übersprungen, sobald Du im **Donut-Modus** warst.
+
+  Warum das gefährlich ist: der **Beamer liest die gespeicherte Zahl roh** — er weiß vom
+  Donut-Modus nichts. Also sah das Telefon Ringe, während der Projektor darunter den
+  abgeschalteten Look zeichnete. Und die Blitz-Bremse konnte ihn nicht bremsen: für einen
+  Look ohne Eintrag kennt sie keine Rate, rechnet mit dem Höchstwert und dämpft dann
+  **exakt gar nicht**. Der Look „Scope" läuft real mit **3,90 Hz** — über der
+  3-Hz-Grenze der Epilepsie-Norm.
+
+  **Für Dich ändert sich sichtbar nichts.** Der Donut-Schalter bleibt unangetastet, das
+  Telefon zeichnet weiter Ringe. Es kann nur keine Zahl mehr auf den Projektor kommen,
+  die Du gar nicht auswählen kannst.
+
+  ── 2. DIE UHR HAT EINE POSITION IN DEN RAUM GEMELDET, DIE SIE NICHT MISST ──
+
+  Die Raum-Ausgabe (ADM-OSC) schickt eine Objektposition aus Deinem Atem. Eine Quelle
+  ohne Atem-Wellenform — Apple Watch, HealthKit — lieferte dort trotzdem dauerhaft
+  **0°**, also „ganz links", als wäre es gemessen. Ein Lichtpult oder ein Raum-Renderer
+  kann eine erfundene Zahl nicht von einer echten unterscheiden.
+
+  Jetzt sind es **zwei getrennte Fragen**: „gibt es eine Atem-RATE?" (Watch: ja) und
+  „gibt es eine Atem-WELLE?" (Watch: nein). Rate wird gesendet, Phase und Azimut
+  schweigen. Art-Net bleibt bewusst wie es war — dort ist die Begründung eine andere.
+
+  ── 3. DREI SÄTZE IM TEXT HABEN ZU VIEL VERSPROCHEN ──────────────────────
+
+  Die Farbunterschrift im Field und zwei Learn-Texte sagten, die gezeigte Farbe sei die
+  CIE-1931-Darstellung Deines Tons. Nachgemessen gilt das für **60,8 %** des Oktavkreises.
+  Die übrigen **39,2 %** liegen auf der **CIE-Purpurlinie**, wo Tiefrot auf Tiefviolett
+  trifft — dort ist die Farbe eine echte Rot-Violett-Mischung, nur keine Einzelwellenlänge.
+  Bei A4 = 440 Hz betrifft das fünf der zwölf Tonklassen: **E · F · F♯ · G · G♯**.
+
+  Das ist **kein Trick und kein Mangel** — genau dieses Schließen des Kreises gibt jedem
+  Ton überhaupt eine Farbe statt einer Lücke. Ein Satz war schlimmer als eine
+  Übertreibung und ist zurückgenommen: „ein Ton jenseits ~700 nm verliert die sichtbare
+  Farbe". Kein Ton wird je unsichtbar.
+
+  ── OFFEN, UND ICH BRAUCHE DEIN AUGE ─────────────────────────────────────
+
+  **Ist das Bild bei VOLLER Lunge am weitesten — oder bei leerer?** Seit 462 ist es so
+  herum verdrahtet: voll = weit. Wenn Du beim tiefen Einatmen siehst, dass es sich
+  zusammenzieht, ist die ganze Atem-Zuordnung um einen halben Zyklus gedreht — Bild,
+  Licht, Raum und Klang zugleich. Eine Antwort, ein Satz.
+
+  Ebenfalls weiter offen: die sechs Punkte aus 460 (Aurora, Ringe, Kaustik, Blend-Dämpfung,
+  „Reduce Motion" am externen Schirm, der Dish-Look aus 459). Die Website sagt weiter
+  „vier generative Looks", bis Du den Dish abnimmst.
+
+  ⚠️ **Geräteverifiziert ist nichts davon.** Beide Gates sind grün (Compile-Check und
+  Testbau auf 402a6f5c); ob es sich richtig ANFÜHLT, weiß nur Dein Gerät.
+
   ⚠ AN DIE NÄCHSTE SESSION: die Versionsnummer in Zeile 1 MUSS die erste im ganzen File
   sein. CI greift mit `grep -m1 -oE 'v[0-9]+\.[0-9]+\.[0-9]+'` über die GESAMTE Datei und
   nimmt den ersten Treffer. Deshalb stehen die Vorgänger unten ohne `v`.
