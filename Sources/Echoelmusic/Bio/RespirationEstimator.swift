@@ -414,6 +414,17 @@ public struct RespirationEstimator {
     // MARK: Outputs
     /// Breath amplitude [0,1] — 1 = inhale peak (lungs full). 0.5 when no clear
     /// respiratory oscillation is present (drives the ball to mid-rest).
+    ///
+    /// ⛔ IT IS NOT AN ENVELOPE, however often it gets called one. `EngineBus.breathPhase`
+    /// said "an ENVELOPE" about this exact value until #1135. Read the line that computes it:
+    /// `env` — the real envelope — is the DENOMINATOR of `norm`, so this is the oscillation
+    /// divided by its own envelope, i.e. a normalised sine in [0,1]. Measured on a clean
+    /// 6/min drive with the shipped time constants: span [0.000, 1.000], mean 0.5000, and it
+    /// crosses 0.5 **exactly twice per cycle** while `env` itself stays near-constant
+    /// (2.02…2.41 at a 0.1 s tick, 1.90…2.26 at the 1 s publish tick — quote the tick with
+    /// the number). The distinction is not pedantic: an envelope carries no phase, this does,
+    /// and `lastCrossT` + `periodEMA` below turn it into the sawtooth `BioSampleFrame`
+    /// actually promises. Guard: `TheBreathPhaseIsASineNotAnEnvelopeTests`.
     public private(set) var amplitude = 0.5
     /// Estimated breathing rate (breaths/min); 0 until a cycle has been measured.
     public private(set) var ratePerMinute = 0.0

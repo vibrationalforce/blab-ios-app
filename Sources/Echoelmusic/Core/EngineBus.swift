@@ -237,12 +237,47 @@ public struct BioSampleFrame: Sendable, Equatable {
     ///
     /// ⚠️ THE CONTRACT IS A SAWTOOTH PHASE; THE CAMERA DOES NOT HONOUR IT. `BioEventGraph`
     /// reads it as one (wrap 1→0 = exhale onset, upward 0.5 crossing = inhale onset), but
-    /// `CameraRPPGBioPublisher` writes `RespirationEstimator.amplitude` here — an ENVELOPE
-    /// (1 = inhale peak, 0.5 = no clear oscillation), which is neither monotonic nor wrapping.
-    /// So on the one egress-allowed breath source, `/echoelmusic/bio/breath/phase` does not
-    /// carry what this line promises and the wrap detector cannot fire. Pre-existing, tracked
-    /// separately — recorded here because #245's decision NOT to gate the phase on its own
-    /// value rests on "0 is a real position", and that reasoning must stay checkable.
+    /// `CameraRPPGBioPublisher` writes `RespirationEstimator.amplitude` here, and that is a
+    /// SINE-SHAPED POSITION rather than a monotone ramp, so the wrap detector cannot fire.
+    /// On the one egress-allowed breath source `/echoelmusic/bio/breath/phase` therefore does
+    /// not carry what this line promises. Pre-existing, tracked separately — recorded here
+    /// because #245's decision NOT to gate the phase on its own value rests on "0 is a real
+    /// position", and that reasoning must stay checkable.
+    ///
+    /// ⛔ THIS BLOCK SAID "an ENVELOPE (1 = inhale peak, 0.5 = no clear oscillation)" UNTIL
+    /// #1135, AND THAT ONE WORD MADE THE REPAIR LOOK FOUR TIMES BIGGER THAN IT IS. Measured
+    /// against `RespirationEstimator.ingest` with its shipped time constants (trend 8 s,
+    /// smooth 0.8 s, env 6 s), driven by a clean 6/min respiratory sinus arrhythmia:
+    ///
+    ///   amplitude = 0.5 + 0.5 · clamp(smooth / (env · 1.4), −1, 1)
+    ///
+    /// `smooth` is the SIGNED band-passed pulse; `env` is the envelope and it sits in the
+    /// DENOMINATOR as a normaliser, so what comes out is the oscillation divided by its own
+    /// envelope — never the envelope itself. Measured over ten cycles: span [0.000, 1.000],
+    /// mean exactly 0.5000, and it passes 0.5 **exactly twice per breath cycle** (up and down;
+    /// 2.000 at a 0.1 s tick, 1.99 at the 1 s publish tick). The true envelope `env` stayed
+    /// near-constant over the same span — 2.02…2.41 at 0.1 s, 1.90…2.26 at 1 s — and an
+    /// envelope cannot span [0,1] once per breath, which is the cheapest way to see the word
+    /// was wrong. ⚠️ Both ticks are quoted on purpose: the first draft of this block carried
+    /// the 1 s figures beside a guard that drives 0.1 s, i.e. a number measured on one grid
+    /// standing in for another — the same defect one scale down.
+    ///
+    /// ⭐ WHY THE CORRECTION CHANGES THE PLAN AND NOT JUST THE PROSE. An envelope would carry
+    /// no phase at all, so honouring this contract would mean deriving one from scratch. A
+    /// normalised sine DOES carry the phase — it merely carries it in the wrong SHAPE — and
+    /// the estimator already holds both terms a sawtooth needs: `lastCrossT` (the upward
+    /// zero-crossing, i.e. inhale onset) and `periodEMA` (the smoothed cycle length). The
+    /// repair is `((t − lastCrossT) / periodEMA + 0.5) mod 1`, not a new estimator. Measured
+    /// at a 0.1 s tick the camera value at that crossing is **0.5073**, so source and contract
+    /// already AGREE on "0.5 = inhale start" and diverge only between the anchors. (At the 1 s
+    /// publish tick the same crossing reads 0.8565 — a sampling artefact of the coarse grid,
+    /// not a second disagreement; do not read it as one.)
+    ///
+    /// ⚠️ CONSEQUENCE FOR ANY CONSUMER THAT APPLIES A SYMMETRIC HUMP. `sin(π · x)` is written
+    /// for a ramp. Fed this sine it peaks at MID-breath and falls to zero at BOTH lung
+    /// extremes, so the picture swells twice per breath. That conclusion was right when it was
+    /// first written down; only its stated reason was wrong. Both are recorded so the next
+    /// session can check the claim instead of inheriting it.
     public let breathPhase: Float
 
     /// `breathPhase` for MODULATION targets: unmeasured becomes a neutral `0.5`.

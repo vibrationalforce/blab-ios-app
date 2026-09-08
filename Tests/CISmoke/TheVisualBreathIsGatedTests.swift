@@ -24,13 +24,21 @@
 // skips the shaping and hands over the same 0.5 the no-frame branch already uses.
 //
 // ⚠️ WHAT IS NOT FIXED HERE, said plainly so nobody reads more into it. On the camera path
-// `breathPhase` carries `RespirationEstimator.amplitude` — an ENVELOPE (1 = inhale peak,
-// 0.5 = mid, 0 = exhale trough), not the sawtooth the field's contract promises. `EngineBus`
-// has documented that since before this commit and calls it pre-existing and tracked
-// separately. Through the hump an envelope peaks at MID-breath and falls to zero at BOTH
-// extremes, so what the founder sees swelling is not the inhale. That is a SECOND defect on
-// the same line and it is deliberately not touched here: it needs a decision about what the
-// contract should be, not a gate.
+// `breathPhase` carries `RespirationEstimator.amplitude` — a normalised SINE position
+// (1 = inhale peak, 0.5 = inhale onset, 0 = exhale trough), not the sawtooth the field's
+// contract promises. Through the hump a sine peaks at MID-breath and falls to zero at BOTH
+// lung extremes, so what the founder sees swelling is not the inhale. That is a SECOND defect
+// on the same line and it is deliberately not touched here: it needs a decision about what
+// the contract should be, not a gate.
+//
+// ⛔ THIS PARAGRAPH SAID "an ENVELOPE" AND SO DID `EngineBus`, WHICH IS WHERE I TOOK IT FROM;
+// #1135 measured the estimator and both were wrong. The CONCLUSION above survives unchanged —
+// mid-breath peak, dark at both extremes, double rate — but the reason does not, and the
+// reason is the half that decides the repair: an envelope would carry no phase, while this
+// sine does, so honouring the contract is a shift of terms the estimator already holds
+// (`lastCrossT`, `periodEMA`) rather than a new estimator. The corrected derivation lives on
+// `EngineBus.breathPhase`; the arithmetic is pinned by
+// `TheBreathPhaseIsASineNotAnEnvelopeTests`.
 //
 // ⚠️ PROVEN vs NOT. Claim 3 is arithmetic and is a proof. Claims 1, 2 and 4 are source-text
 // pins. Whether the picture now rests where it should is the founder's eye —

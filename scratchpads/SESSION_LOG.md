@@ -26654,3 +26654,41 @@ Neutral-Pins + 5 Arithmetik-Prüfungen + 6 Gegengewichte). Kamerabenutzer mit ge
 sehen einen bit-identischen Ausdruck; geändert wird nur, was vorher am Extrem klebte.
 NEEDS-FOUNDER-VERIFY: mit dem Brustgurt (misst nie Atem) soll das Bild jetzt mittig ruhen
 statt am schmalsten und dunkelsten.
+
+## #1135 — `breathPhase` carries a normalised SINE, not an envelope (2026-09-08)
+
+**One wrong noun in the contract doc made a small repair look like a large one.**
+
+`EngineBus.breathPhase` said the camera writes `RespirationEstimator.amplitude` — "an
+ENVELOPE". Measured against the shipped recursion (trend 8 s, smooth 0.8 s, env 6 s), driven
+by a clean 6/min RSA:
+
+    amplitude = 0.5 + 0.5 · clamp(smooth / (env · 1.4), −1, 1)
+
+`env` is the DENOMINATOR. What comes out is the oscillation divided by its own envelope — a
+normalised sine. At a 0.1 s tick: span [0.0000, 1.0000], mean 0.5000, crosses 0.5 exactly
+2.000 times per cycle. The real envelope over the same span moved 2.0212…2.4074. An envelope
+cannot span [0,1] once per breath.
+
+**Why it mattered, and this is the whole point of the slice.** An envelope carries no phase,
+so honouring the sawtooth contract would mean building a phase estimator from nothing — four
+consumers, defer forever. A normalised sine DOES carry the phase, in the wrong SHAPE, and the
+estimator already holds both terms a sawtooth needs: `lastCrossT` (upward zero-crossing =
+inhale onset) and `periodEMA`. The repair is `((t − lastCrossT) / periodEMA + 0.5) mod 1`.
+Measured at 0.1 s the camera reads **0.5073** at that crossing — source and contract already
+AGREE on "0.5 = inhale start" and diverge only between anchors.
+
+**The conclusion survived; only its reason fell.** #1133 and the v10.79.461 note told the
+founder the right thing (mid-breath peak, dark at both lung extremes, double rate) for the
+wrong reason. Corrected in all three homes rather than only the source (#456).
+
+**⛔ MY OWN SECOND-ORDER VERSION OF THE SAME ERROR, caught by driving the guard.** The first
+draft quoted the envelope window as 1.90…2.26 — measured at the **1 s** publish tick — in
+docs whose guard drives **0.1 s**, where it is 2.02…2.41. A number measured on one grid
+standing in for another, one scale below the defect being corrected. Both ticks are now
+quoted with their tick, and the guard's bounds are deliberately wider than either window so
+it pins "near-constant" rather than one grid's pair of numbers.
+
+Guard: `Tests/CISmoke/TheBreathPhaseIsASineNotAnEnvelopeTests.swift` — 4 claims, 16 checks,
+transcribed in Python: ALL PASS. Claim 4 is the #364 counterweight (it protects the repair
+PATH; it never forbids honouring the contract). Zero runtime change: docs + one new guard.
