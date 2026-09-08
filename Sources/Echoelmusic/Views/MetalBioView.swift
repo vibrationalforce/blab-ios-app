@@ -422,16 +422,22 @@ struct MetalBioView: UIViewRepresentable {
     // ⚠️ DECLARED LAST ON PURPOSE. A struct's memberwise initializer takes its parameters in
     // DECLARATION order, so a new property inserted near the top would force every existing
     // call site to move its arguments — and the one site that passes this must be able to
-    // pass it at the END. Placed here, the two mounts that omit it are untouched.
+    // pass it at the END. Placed here, the ONE mount that omits it is untouched.
     /// The key whose PLAY GRID this field sits under, when there is one (#1061). Given, the
     /// sounding note's colour blooms on the cell the finger touched instead of at its
     /// chromatic fraction above C; nil keeps the old pitch-space position.
     ///
-    /// ⚠️ NIL IS THE CORRECT ANSWER FOR TWO OF THE THREE MOUNTS, not a gap to fill later.
-    /// `TouchInstrumentView` exists only in `FloatingVisualWindow`; the fullscreen cover and
-    /// the external stage draw no grid, so they have no cells and pitch space is the honest
-    /// mapping there. The default therefore leaves them alone on purpose (#431: a defaulted
-    /// argument is only safe when the sites that skip it WANT the default — these do).
+    /// ⚠️ NIL IS THE CORRECT ANSWER FOR ONE OF THE TWO MOUNTS, not a gap to fill later.
+    /// `TouchInstrumentView` exists only in `FloatingVisualWindow` (the mount that DOES pass
+    /// this); the external stage draws no grid, so it has no cells and pitch space is the
+    /// honest mapping there. The default therefore leaves it alone on purpose (#431: a
+    /// defaulted argument is only safe when the site that skips it WANTS the default — it does).
+    /// ⛔ "TWO OF THE THREE MOUNTS … the fullscreen cover and the external stage" stood here
+    /// until #1115, and the line four above it said "the two mounts that omit it" — one file
+    /// carrying two different counts of the same thing. #1069 deleted the fullscreen cover, so
+    /// the mounts are `FloatingVisualWindow.swift:858` and `ExternalDisplayScene.swift:218`,
+    /// measured with `git grep -n "MetalBioView(" -- Sources`. The #431 ARGUMENT is unchanged
+    /// and still load-bearing; only its arithmetic was stale.
     ///
     /// ⚠️ It is deliberately the KEY and not a precomputed position table: the grid re-derives
     /// its cells from the key on every rebuild, and a table handed across would be a second

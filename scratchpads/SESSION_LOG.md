@@ -26031,3 +26031,25 @@ in `Tests/CISmoke/CLAUDE.md` ist stark veraltet — sie sagt 284 Dateien / 1 927
 / 243 / 77**. Das ist keine kleine Drift, sondern das Vierfache in einem Fall. Nach der
 #818-Lehre gehören die Zahlen GELÖSCHT statt nachgeführt, weil der Befehl schon danebensteht —
 eine eigene Entscheidung an einer fremden Gesetzesdatei, also eine eigene Scheibe.
+
+## #1115 — EINE Datei, ZWEI verschiedene Zählungen derselben Sache: `MetalBioView` sagte vier Zeilen auseinander „die zwei Montagestellen" und „zwei von DREI"
+
+**Herkunft:** Linse „deadcode" des Visual-Audits meldete „MetalBioView beschreibt noch DREI
+Mounts". Selbst nachgemessen (`git grep -n "MetalBioView(" -- Sources`): **ZWEI** —
+`Studio/FloatingVisualWindow.swift:858` und `Studio/ExternalDisplayScene.swift:218`. Die dritte
+war das Vollbild-Cover, das #1069 gelöscht hat.
+
+**Was der Agent NICHT sah und die eigene Messung schon:** die Datei trug **zwei verschiedene
+Zahlen für dieselbe Sache, vier Zeilen auseinander** — Z. 425 „the two mounts that omit it"
+(richtig wäre EINE: nur die externe Bühne lässt den Schlüssel weg) und Z. 430 „TWO OF THE THREE
+MOUNTS". Beide falsch, in unterschiedliche Richtungen, und keine Rücknahme dazwischen. Das ist
+die schärfere Form des #818-Musters: nicht eine veraltete Zahl, sondern zwei, die sich schon vor
+der Löschung widersprochen haben müssen.
+
+**Was NICHT angefasst ist:** das #431-ARGUMENT selbst („ein defaultetes Argument ist nur sicher,
+wenn die Stelle, die es auslässt, den Default WILL"). Es gilt unverändert — nur seine Arithmetik
+war veraltet. Genau die Unterscheidung, die diese Datei an anderer Stelle verlangt: ein Vermerk,
+der einen lebenden Mechanismus für tot erklärt, ist die teuerste Sorte.
+- Kein Wächter pinnt eine der zwei Phrasen (gegrept); moved-needles: kein Treffer.
+- Gates #1113: Xcode 2451 grün, CI/CD 5916 `Build for Testing` **grün** — der Physik-Kern und
+  seine 9 Pins kompilieren im blockierenden Bündel.
