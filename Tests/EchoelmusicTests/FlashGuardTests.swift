@@ -144,10 +144,12 @@ final class FlashGuardTests: XCTestCase {
     ///    drift if someone edits the Metal source without updating them. A first
     ///    version of this table had three of four rows wrong, so treat the numbers
     ///    as documentation that must be re-derived, not as a proof.
-    /// 2. The multipliers are the FASTEST term in each function, which for Water and
-    ///    Depth is a PRODUCT of two phase-bearing factors (sum sideband f₁+f₂), and
-    ///    for Aurora is an `abs()` FOLD of a phase-bearing wave — not a plain
-    ///    "the style's own multiplier".
+    /// 2. The multipliers are the FASTEST term in each function, which for Water is a
+    ///    PRODUCT of two phase-bearing factors (sum sideband f₁+f₂), for Aurora is an
+    ///    `abs()` FOLD of a phase-bearing wave, and for Depth is a plain rate whose
+    ///    `folds` flag carries the non-monotone illumination — not a plain "the style's
+    ///    own multiplier". (⛔ This line named Depth alongside Water until #1117 replaced
+    ///    that function; the sine product it referred to is gone.)
     /// 3. It does NOT cover additive superposition (the heartbeat bloom on top of the
     ///    field) or the A↔B blend union. Those need per-pixel photometry.
     func testEveryReachableLookObeysTheThreeHzLaw() {
@@ -182,9 +184,20 @@ final class FlashGuardTests: XCTestCase {
             // Aurora therefore sits exactly ON the limit with ZERO margin — the
             // worst-case row in the app. Do not add any further phase term to it.
             ("Aurora", 1.20, false),                                        // → 3.00 Hz
-            // fieldDepthCaustics: sin(x·s + t)·cos(y·s − 0.8t), t = 0.4·phase
-            // ⇒ product sideband 0.4 + 0.32 = 0.72.
-            ("Depth",  0.72, false)                                         // → 1.80 Hz
+            // fieldDepthCaustics (#1117 rebuilt it as a real ray map): the ONLY phase-bearing
+            // term is `breathe = 0.85 + 0.15·sin(0.30·phase)`, which enters the focus number
+            // φ. Unlike `fieldDish`'s lens law, the illumination 1/|det J| is NOT monotone in
+            // φ — it PEAKS at the caustic — so a pixel near a fold can cross it twice per
+            // cycle. That fold is real and is declared here rather than argued away ⇒
+            // (0.30, folds: true). Everything else in the function is monotone: `pow` on a
+            // non-negative field, `clamp`, `min`, and the weighted mean over the three
+            // depths. `dishStrength` is the eased music level and `breath` a ≤0.5 Hz body
+            // signal on the viewing depth — neither carries the pulse phase.
+            // ⛔ THE ROW IT REPLACES read `("Depth", 0.72, false) → 1.80 Hz` and described
+            // `sin(x·s + t)·cos(y·s − 0.8t)`. That code no longer exists; the new number is
+            // LOWER and its `folds` flag is now true, so the change is stricter in the term
+            // that matters and calmer in the rate.
+            ("Depth",  0.30, true)                                          // → 1.50 Hz
         ]
         for look in looks {
             let hz = FlashGuard.effectiveFieldHz(phaseRateHz: maxPhaseRate,

@@ -26053,3 +26053,89 @@ der einen lebenden Mechanismus für tot erklärt, ist die teuerste Sorte.
 - Kein Wächter pinnt eine der zwei Phrasen (gegrept); moved-needles: kein Treffer.
 - Gates #1113: Xcode 2451 grün, CI/CD 5916 `Build for Testing` **grün** — der Physik-Kern und
   seine 9 Pins kompilieren im blockierenden Bündel.
+
+## #1116 — „coherence → hue" war nie wahr, stand aber in acht Heimaten (2026-09-08)
+
+**Der Befund kam aus dem Visual-Deep-Audit und ich habe ihn selbst nachgemessen, bevor ich
+etwas anfasste** — zwei der sechs Widerlegungen desselben Audits zeigen, dass die Linsen zu
+breit greifen können.
+
+Gemessen: die Fragment-Farbe kommt aus `toneColour` (klingende Tonhöhe → sichtbares Spektrum,
+Zwilling von `SpectralColor.toneLinearRGB`), aus den Noten-WOLKEN an ihren Tonhöhen-Orten und
+aus dem VJ-Regler `hueShift`. `u.coherence` erreicht den Shader als `coh`, und JEDE
+`field*`-Funktion gibt sie für ORDNUNG aus: `pow(intensity, mix(1.0, 2.6, coh))` in Rings,
+`mix(0.16, 0.045, coh)` Linienbreite in Lissajous, die Vorhangkante in Aurora. Die einzige
+Stelle, an der Kohärenz je einen Farbton erzeugte, ist `BioVisualParams.hue`
+(= coherence × 0.45) — und `MetalBioView` sagt an ZWEI Stellen selbst, dass das Feld keinen
+Verbraucher hat.
+
+**Acht Heimaten, sieben davon falsch:** `MetalBioView`-Kopf (seit der ersten Zeile der Datei),
+`overview.html` ×3, `index.html`, `architecture.html` ×3, `docs/dev/FEATURE_MATRIX.md` — und die
+FEHLERMELDUNG eines blockierenden Wächters, die „HRV drives pattern COMPLEXITY while COHERENCE
+drives hue" behauptete, während sie einen anderen Anspruch erklärte. Das ist die #456-Form in
+Reinform.
+
+**Der Unterschied zu einer veralteten Zahl:** kein ausgelieferter Build dieses Renderers hat die
+Abbildung je implementiert. Nichts hätte rot werden können. #184-Klasse — eine falsche
+Fähigkeits-Behauptung in Store-Text ist eine 2.3-Ablehnung.
+
+Bewusst NICHT angefasst: `brainstorming.html`s Build-1867-Eintrag und `version.json`. Das sind
+datierte Changelogs, und `version.json`s eigener Build-1881-Eintrag kündigt die Ton→Farbe-Arbeit
+an — der frühere Eintrag kann damals zutreffend gewesen sein. Ein Archiv umzuschreiben wäre
+Geschichtsfälschung, keine Korrektur.
+
+Wächter: eine Methode in `WebsitePagesAreFindableAndHonestTests`, zwei Ansprüche, in Python
+gegen diesen Baum transkribiert — beide GRÜN. Anspruch 1 scannt die drei
+Gegenwarts-Seiten auf fünf Schreibweisen der Paarung, nach Normalisierung von
+`&nbsp;`/`&rarr;`/`&mdash;`. Anspruch 2 ist das GEGENGEWICHT (#364): er pinnt die PRÄMISSE
+statt des Ergebnisses — wer `vp.hue` verdrahtet, wird zuerst dort rot und bekommt jede Seite
+genannt, die dann mitzuziehen ist.
+
+## #1117 — Depth Caustics ist jetzt eine echte Strahlenkarte (2026-09-08)
+
+Scheibe 2 nach #1113: die Kaustik-Physik hat ihren Aufrufer. Der Founder-Ask war „generative
+and physical association Visuals weiter entwickeln", und dieser Look war die offene Lücke.
+
+**Was falsch war.** `fieldDepthCaustics` (Stil 7, in `LookBlendMap.defaultSequence`, also vor
+jedem Nutzer) nannte sich KAUSTIK und rechnete `pow(0.5 + 0.14·(drei Sinus-Lagen), gamma)` — eine
+Helligkeitskurve auf einer Sinus-Summe. Eine echte Kaustik ist eine SINGULARITÄT einer
+Strahlenkarte. Schlimmer und für den Nutzer sichtbar: die einzige Längenskala war
+`mix(3.0, 5.0, breath)` — DIE KLINGENDE TONHÖHE ERREICHTE DEN LOOK NIE. Genau der Defekt, den
+#1078 aus `fieldWater` entfernt hat, unbemerkt in einem anderen Look stehengeblieben.
+
+**Was jetzt gilt.** I = 1/|det J| mit J = I + β·Hess(h), β = D·(1−1/n). Auf der quadratischen
+Stehwellen-Fläche h = ½(cos kx + cos ky) ist die normierte Krümmung −½cos kx, also
+det J = (1 − ½φ·cos kx)(1 − ½φ·cos ky) mit EINEM dimensionslosen φ. Die Fläche ist die des
+Dish — `dishK`/`dishStrength` liegen längst auf der GPU —, also sind die Schale von oben und das
+Licht darunter EIN Experiment, zweimal gezeichnet. Eine Oktave höher macht das Netz hier
+2^(2/3) feiner, aus demselben Grund wie dort.
+
+**Tiefe ist jetzt echt.** φ ∝ D, also sind drei Fokuszahlen wörtlich drei Bodentiefen. Der
+1,7-Schritt ist vom alten Look geerbt, damit die Textur wiedererkennbar bleibt — und es kostet
+ZWEI Kosinus insgesamt (die Fläche ist geteilt, nur φ ändert sich) statt neun Trigonometrie-
+Aufrufe. Der Look wurde billiger.
+
+**Gemessen, nicht geschätzt** (Python-Transkription der geschriebenen Shader-Arithmetik):
+Stille 0,3039 · dunkle Zellen 0,0184 · Kämme 0,8975 · Kaustik-Filamente 1,0000. Stille ist ein
+gleichmäßig beleuchteter Boden, kein schwarzes Bild — das ist die physikalische Antwort
+(φ = 0 ⇒ det J = 1 ⇒ Intensität exakt 1), und sie beantwortet nebenbei den Schwarzbild-Befund
+des Audits für diesen Look.
+
+**Flash-Budget im selben Commit neu abgeleitet.** Einziger phasentragender Term ist
+`sin(phase·0.30)` in `breathe`, das in φ eingeht. Anders als bei `fieldDish` ist 1/|det J| NICHT
+monoton in φ — es hat sein Maximum AN der Kaustik —, also kann ein Pixel nahe einer Falte
+zweimal pro Zyklus hindurch. Diese Falte ist echt und wird DEKLARIERT statt wegargumentiert:
+(0.30, folds: true) → 1,50 Hz. Die Zeile, die sie ersetzt, sagte 1,80 Hz — die neue Zahl ist
+niedriger UND ihr `folds`-Flag ist jetzt wahr. Der #1114-Parser wurde gegen die neue Tabelle
+transkribiert: weiterhin fünf Zeilen, alle unter der Decke.
+
+`renderFullBrightIntensity` bewusst auf 2,5 statt 4,0: bei 4,0 rendert der ruhende Boden 0,165,
+nahe genug an Schwarz, dass ein Kaltstart in diesen Look wie ein defekter Bildschirm aussähe.
+
+Wächter: `Tests/CISmoke/TheDepthLookIsARayMapNotAPowerCurveTests.swift`, fünf Ansprüche, alle
+transkribiert GRÜN. Anspruch 5 ist das Gegengewicht — φ muss > 2 bleiben, denn darunter existiert
+auf dieser Fläche ÜBERHAUPT KEINE Falte und der Look hieße weiter „Caustics", während er Bänder
+zeichnet. Er verbietet das Ändern nicht, er verbietet einen Namen, der lügt.
+
+NEEDS-FOUNDER-VERIFY: liest das Netz wie Licht auf einem Beckenboden, und zieht eine Oktave
+höher es sichtbar enger?

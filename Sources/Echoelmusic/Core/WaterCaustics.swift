@@ -109,6 +109,11 @@ enum WaterCaustics {
     /// quantity, see the header. Ray optics diverges at the caustic; this is the bound.
     static let intensityCeiling = 8.0
 
+    /// The same value as an exact Metal token. The shader bounds its own division rather
+    /// than calling back into Swift, so the bound must be ONE number in both places — this
+    /// is a flash-safety quantity, and a silent drift here is a luminance excursion.
+    static let intensityCeilingMetalLiteral = "8.0"
+
     // MARK: - Refraction
 
     /// The fraction of the surface slope that becomes ray tilt inside the water:
@@ -170,6 +175,85 @@ enum WaterCaustics {
         let b = 1.0 + phi * cyy
         let c = phi * cxy
         return a * b - c * c
+    }
+
+    // MARK: - What the renderer actually needs (#1117)
+
+    /// The focus number at FULL pattern strength — the one number the picture depends on,
+    /// and therefore the one thing the shader has to be handed.
+    ///
+    /// It also fixes the viewing depth implicitly, because φ = D·(1−1/n)·a·k² can be read
+    /// backwards: D = φ / ((1−1/n)·a·k²). So choosing 3.0 is choosing to look at the floor
+    /// from three times the focusing depth. That is the honest way round — a renderer has
+    /// no metres, and every metre cancels in φ.
+    ///
+    /// ⚠️ A NAMED CHOICE, and 3.0 is not arbitrary. On the square standing surface the
+    /// looks use, h = ½(cos kx + cos ky), the normalised curvature is −½cos kx, so
+    /// det J = (1 − ½φ·cos kx)(1 − ½φ·cos ky) and a caustic exists only where cos kx = 2/φ.
+    /// **Below φ = 2 there is no caustic anywhere on the surface** — the floor is smooth
+    /// banding and the look would be misnamed. 3.0 puts the fold at cos kx = ⅔, which
+    /// draws a closed loop around every crest: the pool-floor network. Founder-tunable:
+    /// larger = more folds and a busier net; below 2 the network disappears entirely.
+    static let renderFocusNumberAtFullPattern = 3.0
+
+    /// The same value as an exact Metal token, so the shader cannot drift from the Swift
+    /// law (the `SpectralColor`/`FlashGuard` twinning convention).
+    static let renderFocusNumberAtFullPatternMetalLiteral = "3.0"
+
+    /// Three floor depths, as ratios of the first. φ is strictly proportional to depth, so
+    /// evaluating the SAME determinant at three focus numbers is literally looking at three
+    /// depths of the same water — the deeper layers are folded further and read finer.
+    ///
+    /// ⭐ This is what makes the look's own name true. The shipped `fieldDepthCaustics`
+    /// stacked three sine layers at increasing SPATIAL FREQUENCY and decreasing brightness
+    /// to *suggest* depth; here depth is the actual parameter, and the layers cost two
+    /// cosines TOTAL because the surface is the same for all three — only φ differs.
+    /// The 1.7 step is inherited from the look it replaces, so its texture is recognisable.
+    static let depthLayerFocusRatios: [Double] = [1.0, 1.7, 2.89]
+
+    /// Brightness weight per layer — nearer floor reads strongest. Inherited from the same
+    /// look, and normalised away in `layeredIntensity`, so these are a ratio, not a gain.
+    static let depthLayerWeights: [Double] = [1.0, 0.55, 0.30]
+
+    /// The intensity that renders as full white. `intensity` is unbounded up to
+    /// `intensityCeiling` = 8, and mapping that whole range onto the screen would leave the
+    /// ordinary floor almost black. A NAMED CHOICE; monotone, so it cannot add a flash.
+    ///
+    /// ⚠️ 2.5 IS A DELIBERATELY LOW MAPPING AND THE REASON IS THE SILENT STATE. A flat
+    /// surface returns intensity exactly 1, so this divisor alone decides what SILENCE looks
+    /// like: at 4.0 the resting floor renders 0.165 after the coherence curve — close enough
+    /// to black that a cold launch into this look (it is in `LookBlendMap.defaultSequence`)
+    /// would read as a broken screen. At 2.5 it is 0.30, an unmistakably lit calm ground,
+    /// and the caustic network still saturates because the filaments run to the ceiling of
+    /// 8. Founder-tunable in the OTHER direction too: larger = a darker floor and a
+    /// thinner, harder network. NEEDS-FOUNDER-VERIFY on a device.
+    static let renderFullBrightIntensity = 2.5
+
+    static let depthLayerFocusRatioMetalLiterals = ["1.0", "1.7", "2.89"]
+    static let depthLayerWeightMetalLiterals = ["1.0", "0.55", "0.30"]
+    /// Σ of `depthLayerWeights`, as an exact token — the normaliser the shader divides by.
+    static let depthLayerWeightSumMetalLiteral = "1.85"
+    static let renderFullBrightIntensityMetalLiteral = "2.5"
+
+    /// The floor's illumination at the three depths, weight-averaged and normalised so a
+    /// FLAT surface returns exactly 1 — an evenly lit floor, never a black frame and never
+    /// a glow. `cxx`/`cyy` are the dimensionless curvatures (`jacobianDeterminant`'s
+    /// contract: divided by a·k²). This is the exact computation the shader performs; the
+    /// guard drives this function so the two cannot disagree.
+    static func layeredIntensity(focusNumber phi: Double,
+                                 curvatureXX cxx: Double,
+                                 curvatureYY cyy: Double = 0,
+                                 curvatureXY cxy: Double = 0) -> Double {
+        var acc = 0.0
+        var weightSum = 0.0
+        for (ratio, weight) in zip(depthLayerFocusRatios, depthLayerWeights) {
+            let det = jacobianDeterminant(focusNumber: phi * ratio,
+                                          curvatureXX: cxx, curvatureYY: cyy, curvatureXY: cxy)
+            acc += weight * intensity(jacobianDeterminant: det)
+            weightSum += weight
+        }
+        guard weightSum > 0 else { return 1 }
+        return acc / weightSum
     }
 
     /// Illumination on the floor: I = 1/|det J|, bounded by `intensityCeiling` because a

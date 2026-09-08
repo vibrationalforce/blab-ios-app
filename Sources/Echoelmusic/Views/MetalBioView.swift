@@ -1872,25 +1872,74 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
         float w = mix(0.16, 0.045, coh);                         // coherence sharpens
         return 1.0 - smoothstep(0.0, w, abs(x - y));
     }
-    // STYLE 7 — DEPTH CAUSTICS: three superposed caustic layers at increasing scale
-    // and decreasing brightness → a parallax/occlusion sense of depth (deeper filaments
-    // finer + dimmer), like light through deep water. Manually unrolled (no loop, like
-    // fieldWater) for compile safety; slow flash-safe phase only; coherence brightens
-    // the crests into caustic filaments.
-    float fieldDepthCaustics(float2 p, float phase, float coh, float breath) {
-        float t = phase * 0.4;
-        float s = mix(3.0, 5.0, breath);
-        float w0 = sin(p.x * s + t) * cos(p.y * s - t * 0.8)
-                 + sin(length(p) * (s + 2.0) - t * 1.1);
-        float s1 = s * 1.7;
-        float w1 = sin(p.x * s1 + t + 1.3) * cos(p.y * s1 - t * 0.8 + 1.0)
-                 + sin(length(p) * (s1 + 2.0) - t * 1.1 - 1.0);
-        float s2 = s1 * 1.7;
-        float w2 = sin(p.x * s2 + t + 2.6) * cos(p.y * s2 - t * 0.8 + 2.0)
-                 + sin(length(p) * (s2 + 2.0) - t * 1.1 - 2.0);
-        float acc = w0 + 0.55 * w1 + 0.30 * w2;
-        float net = clamp(0.5 + 0.14 * acc, 0.0, 1.0);
-        return pow(net, mix(3.0, 6.0, coh));
+    // STYLE 7 — DEPTH CAUSTICS: the light a rippled surface throws on the floor beneath it,
+    // at three depths at once. Ray optics only, and every filament is DERIVED, not drawn.
+    //
+    // ⭐ WHAT #1117 CHANGED, AND WHY THE OLD ONE WAS MISNAMED. Until this commit the body
+    // was `pow(0.5 + 0.14 * (three sine layers), gamma)` — a brightness curve on a sine sum.
+    // A real caustic is a SINGULARITY of a ray map, not a steep power curve, and the tell
+    // was the same defect Slice 1 removed from `fieldWater`: the only length scale was
+    // `mix(3.0, 5.0, breath)`, so THE SOUNDING PITCH NEVER REACHED THIS LOOK — while it sits
+    // in `LookBlendMap.defaultSequence`, i.e. every user sees it. Breath set the wavelength
+    // and the tone set nothing: the two knobs were swapped.
+    //
+    // THE LAW (`Core/WaterCaustics.swift`, pinned by #1113 before a pixel depended on it):
+    //  · a vertical ray meeting a surface of slope ∇h is tilted by (1 − 1/n)·∇h inside the
+    //    water (0.2498 for water — a quarter of the slope, not all of it), so after a depth
+    //    D it lands at x' = x + β·∇h with β = D·(1 − 1/n);
+    //  · energy is conserved in a ray tube ⇒ I = 1/|det J|, J = I + β·Hess(h). The bright
+    //    network IS the locus det J = 0; the dark cells between are |det J| > 1.
+    // On the square standing surface h = ½(cos kx + cos ky) the normalised curvature is
+    // −½cos kx, so det J = (1 − ½φ·cos kx)(1 − ½φ·cos ky) with ONE dimensionless φ.
+    //
+    // THE SURFACE IS THE DISH'S. `k` and `strength` are `u.dishK` / `u.dishStrength` — the
+    // same gravity–capillary solve `fieldDish` renders from above. The dish and the light it
+    // casts are now one experiment drawn twice, and an octave up makes the net 2^(2/3) finer
+    // here for exactly the reason it does there.
+    //
+    // DEPTH IS NOW REAL. φ ∝ D, so evaluating the SAME determinant at three focus numbers is
+    // literally three floor depths — the deeper layers are folded further and read finer.
+    // The 1.7 step is inherited from the look this replaces so the texture stays familiar,
+    // and it costs TWO cosines total (the surface is shared; only φ differs), which is
+    // cheaper than the nine trig calls it replaces.
+    //
+    // SILENCE = AN EVENLY LIT FLOOR, NOT A BLACK FRAME. strength 0 ⇒ φ = 0 ⇒ det J = 1 ⇒
+    // intensity exactly 1 at every depth ⇒ a calm uniform ground. That is the physical
+    // answer, and it is why this look cannot render black when nothing is sounding.
+    //
+    // FLASH BUDGET (derive, do not guess): the ONLY phase-bearing term is `sin(phase*0.30)`
+    // in `breathe`, which enters φ. Unlike `fieldDish`'s lens law, 1/|det J| is NOT monotone
+    // in φ — it peaks AT the caustic — so a pixel near a fold can cross it twice per cycle.
+    // That is a genuine fold and it is declared: (0.30, folds: true) → 0.30 × 2.5 × 2 =
+    // 1.50 Hz, below the old row's 1.80 Hz and well under the 3 Hz WCAG ceiling. Everything
+    // else here is monotone (`pow` on a non-negative field, `clamp`, the weighted mean) and
+    // therefore changes each flash's SHAPE, never the count. Breath moves the viewing depth
+    // (a NAMED CHOICE: D is a real free parameter and breath is otherwise unused here); it
+    // is a ≤0.5 Hz body signal, not the pulse phase, exactly as in `fieldWater`/`fieldAurora`.
+    float fieldDepthCaustics(float2 p, float phase, float coh, float breath, float k, float strength) {
+        // Normalised curvature of h = ½(cos kx + cos ky), divided by a·k² per the law's
+        // contract, so a crest of a single ripple reads −1. Separable ⇒ the cross term is 0.
+        float cxx = -0.5 * cos(p.x * k);
+        float cyy = -0.5 * cos(p.y * k);
+        float breathe = 0.85 + 0.15 * sin(phase * 0.30);        // slow life on the depth
+        float depth = mix(0.8, 1.2, clamp(breath, 0.0, 1.0));   // breath sinks/lifts the floor
+        float phi = \(WaterCaustics.renderFocusNumberAtFullPatternMetalLiteral)
+                  * clamp(strength, 0.0, 1.0) * breathe * depth;
+        float cap = \(WaterCaustics.intensityCeilingMetalLiteral);
+        float acc = 0.0;
+        // Unrolled (no loop, like fieldWater) for compile safety. Three depths, one surface.
+        float p0 = phi * \(WaterCaustics.depthLayerFocusRatioMetalLiterals[0]);
+        float d0 = (1.0 + p0 * cxx) * (1.0 + p0 * cyy);
+        acc += \(WaterCaustics.depthLayerWeightMetalLiterals[0]) * min(1.0 / max(abs(d0), 1.0 / cap), cap);
+        float p1 = phi * \(WaterCaustics.depthLayerFocusRatioMetalLiterals[1]);
+        float d1 = (1.0 + p1 * cxx) * (1.0 + p1 * cyy);
+        acc += \(WaterCaustics.depthLayerWeightMetalLiterals[1]) * min(1.0 / max(abs(d1), 1.0 / cap), cap);
+        float p2 = phi * \(WaterCaustics.depthLayerFocusRatioMetalLiterals[2]);
+        float d2 = (1.0 + p2 * cxx) * (1.0 + p2 * cyy);
+        acc += \(WaterCaustics.depthLayerWeightMetalLiterals[2]) * min(1.0 / max(abs(d2), 1.0 / cap), cap);
+        float lit = acc / \(WaterCaustics.depthLayerWeightSumMetalLiteral);
+        float net = clamp(lit / \(WaterCaustics.renderFullBrightIntensityMetalLiteral), 0.0, 1.0);
+        return pow(net, mix(1.0, 1.6, coh));                    // coherence firms the network
     }
     // Cheap hash (moved up from below so the fractal look can build value noise on it)
     // → also the sub-LSB dither that removes banding in the dark gradients.
@@ -1968,7 +2017,7 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
         else if (si < 4.5)  field = fieldPrism(pf, phase, coh);
         else if (si < 5.5)  field = fieldAurora(pf, phase, coh, breath);
         else if (si < 6.5)  field = fieldLissajous(pf, toneHz, phase, coh);
-        else if (si < 7.5)  field = fieldDepthCaustics(pf, phase, coh, breath);
+        else if (si < 7.5)  field = fieldDepthCaustics(pf, phase, coh, breath, u_dishK, u_dishStrength);
         else if (si < 8.5)  field = fieldScope(pf, toneHz, phase, coh);
         else                field = fieldFractal(pf, phase, coh, breath);
         return float2(field, vig);
