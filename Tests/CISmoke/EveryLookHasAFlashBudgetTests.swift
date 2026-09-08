@@ -1,40 +1,38 @@
 // EveryLookHasAFlashBudgetTests.swift
-// Echoel — #1114: no look reaches a user without a flash budget, and every budget in the
-// table is re-derived against the WCAG ceiling by a BLOCKING gate.
+// Echoel — no look reaches a user unbudgeted, in the BLOCKING bundle.
 //
-// WHAT THIS GUARDS, and why it is new. The per-look flash budget table lives in
-// `Tests/EchoelmusicTests/FlashGuardTests.swift` — the NON-BLOCKING suite (#208: no gate
-// compiles it). Until this file, the only blocking protection was PER LOOK and written by
-// hand: `TheWaterDishIsLitLikeTheExperimentTests` claim 7 pins that *the Dish* has both a
-// library row and a budget row, because #1102 knew an unbudgeted look could reach `main`.
-// Nothing generalised it. A SIXTH look added tomorrow inherits no protection at all — the
-// author has to remember, and the gate stays green if they do not. That is the gap this
-// closes, and it is closed BEFORE the next look rather than after it (`Core/WaterCaustics`
-// #1113 is the physics of exactly such a look, sitting in the tree with no caller yet).
+// WHY IT EXISTS (#1114). #1102 hand-wrote a blocking pin for the Dish because that commit
+// knew an unbudgeted look could reach `main`. Nobody generalised it, so a sixth look would
+// have inherited nothing. This is the general case: every entry a user can select must have
+// a budget row, and every row's arithmetic must run inside a gate.
 //
-// KIND (§1): **MIXED, labelled per claim.** Claim 1 is a SOURCE-TEXT SCAN of the budget
-// table plus an END-TO-END read of the shipped `LookBlendMap.library`. Claim 2 is END-TO-END
-// BEHAVIOUR — it parses the table's rows and drives the real `FlashGuard.effectiveFieldHz`,
-// so the WCAG arithmetic that today only runs in the non-blocking suite now runs in a gate.
-// Claim 3 is a SOURCE-TEXT SCAN that keeps claim 2 from silently covering less than it says.
+// ⛔ THIS FILE PARSED SOURCE TEXT UNTIL #1123, AND THAT IS NO LONGER NECESSARY — the change
+// is worth stating because the parser was the interesting part and its absence looks like a
+// loss. The budget TABLE used to be a literal array inside
+// `Tests/EchoelmusicTests/FlashGuardTests.swift`, i.e. the suite no gate compiles (#208), so
+// #1114 reached it the only way a blocking test could: by reading the file as text and
+// re-deriving each row through the real `FlashGuard.effectiveFieldHz`. #1123 moved the DATA
+// into `FlashGuard.fieldBudgets`, where it is compiled law. The claims below now read the
+// law directly — strictly stronger, because a parser can only ever check what it manages to
+// match, and this cannot silently match less.
 //
-// §3 grading against the parent tree: claims 1–3 are COUNTERWEIGHTS — green on both trees,
-// which is the point of the file. It is not a regression guard; it is the missing general
-// case of a per-look guard that already exists. 0 regressions, 0 anchor absences, 0 forward
-// guards, 3 counterweights.
+// ⛔ ONE CLAIM WAS RETIRED WITH THE PARSER, DELIBERATELY AND NOT SILENTLY. #1114's claim 3
+// pinned that `FlashGuard.ringsPhaseDamping` was the only SYMBOLIC multiplier in the table,
+// so a future symbolic row could not slip past the parser unresolved. With the table typed,
+// a symbolic value is just a `Double` the compiler resolves — the failure mode it guarded
+// against cannot occur. Claim 3 below replaces it with the check that IS still decidable:
+// the rows address distinct styles and each names a real library look.
 //
-// ⚠️ WHAT THIS DOES NOT PROVE, stated before the claim (§1). It does NOT prove a multiplier
-// is the right one for its shader function. Those numbers are hand-derived prose about the
-// fastest phase-bearing term, and only two rows are tied to the shader by a guard at all
-// (Rings via `FlashGuard.ringsPhaseDamping`, Dish via `TheWaterDishIsLitLikeTheExperimentTests`).
-// A row that says 0.40 for a function that actually multiplies two phase-bearing factors
-// would pass every assertion here. This file proves COMPLETENESS and the CEILING ARITHMETIC,
-// not correctness of the derivation — a real remaining gap, named rather than papered over.
-//
-// ⚠️ It also does not cover the A↔B BLEND. `LookBlendMap` crossfades two looks at once and
-// the union of two phase spectra is not the max of two budgets; the shipped default sequence
-// puts the zero-margin look (Aurora, exactly 3.00 Hz) inside that union. Out of scope here
-// and worth its own slice.
+// ⚠️ TWO LIMITS, unchanged and stated before the claims because a green here reads broader
+// than it is:
+//   · It proves each row's ARITHMETIC and the table's COMPLETENESS. It cannot prove a
+//     hand-derived multiplier actually matches its shader function — that is a re-derivation
+//     a human does when editing the function, and rows have been wrong before.
+//   · It does NOT cover the A↔B BLEND UNION. Two looks mixed at an intermediate blend show
+//     a pixel the union of both flash counts, and Aurora alone already sits at exactly
+//     3.00 Hz with zero margin, in `LookBlendMap.defaultSequence`. That hole is real and
+//     named here on purpose; closing it is its own slice, and `FlashGuard.fieldBudget(
+//     forStyle:)` is the piece it needs.
 
 import Foundation
 import XCTest
@@ -42,138 +40,73 @@ import XCTest
 
 final class EveryLookHasAFlashBudgetTests: XCTestCase {
 
-    /// The budget table's home. Deliberately a hard failure if it moves — a guard that
-    /// silently skips when its subject is renamed is the defect this bundle exists against.
-    private static let budgetTable = "Tests/EchoelmusicTests/FlashGuardTests.swift"
-
-    /// Rows whose multiplier is a SYMBOL rather than a literal, with the value to use.
-    /// Claim 3 pins this set, so a future symbolic row cannot slip past claim 2 unparsed.
-    private static let symbolicMultipliers: [String: Double] = [
-        "FlashGuard.ringsPhaseDamping": FlashGuard.ringsPhaseDamping
-    ]
-
-    private func repoRoot() throws -> URL {
-        var url = URL(fileURLWithPath: #filePath)
-        for _ in 0 ..< 8 {
-            url.deleteLastPathComponent()
-            if FileManager.default.fileExists(atPath: url.appendingPathComponent("Sources/Echoelmusic").path) {
-                return url
-            }
-        }
-        throw XCTSkip("repo root not found from \(#filePath)")
-    }
-
-    private func tableSource() throws -> String {
-        let path = try repoRoot().appendingPathComponent(Self.budgetTable).path
-        guard FileManager.default.fileExists(atPath: path) else {
-            XCTFail("""
-            The per-look flash budget table is not at \(Self.budgetTable) any more. It was \
-            MOVED or renamed, and this guard — the only blocking one that checks every look \
-            has a budget — cannot see it. Point this constant at the new home in the SAME \
-            commit that moves the table; do not delete this file to make the red go away.
-            """)
-            return ""
-        }
-        return try String(contentsOfFile: path, encoding: .utf8)
-    }
-
-    /// Every row of the table, as (name, multiplier), parsed from source. Rows whose
-    /// multiplier is symbolic are resolved through `symbolicMultipliers`.
-    private func parsedRows(_ source: String) -> [(name: String, multiplier: Double, folds: Bool)] {
-        var rows: [(String, Double, Bool)] = []
-        for rawLine in source.split(separator: "\n", omittingEmptySubsequences: false) {
-            let line = String(rawLine)
-            // Skip the comment lines that carry example tuples in prose.
-            guard !line.trimmingCharacters(in: .whitespaces).hasPrefix("//") else { continue }
-            guard let open = line.range(of: "(\""), let closeQuote = line.range(of: "\"", range: open.upperBound ..< line.endIndex)
-            else { continue }
-            let name = String(line[open.upperBound ..< closeQuote.lowerBound])
-            let rest = line[closeQuote.upperBound...]
-            guard rest.hasPrefix(",") else { continue }
-            let fields = rest.dropFirst()
-                .split(separator: ",", maxSplits: 2, omittingEmptySubsequences: false)
-                .map { $0.trimmingCharacters(in: .whitespaces) }
-            guard fields.count >= 2 else { continue }
-            let multiplierToken = fields[0]
-            let foldsToken = fields[1].hasPrefix("true") ? "true" : (fields[1].hasPrefix("false") ? "false" : "")
-            guard !foldsToken.isEmpty else { continue }
-            let value = Double(multiplierToken) ?? Self.symbolicMultipliers[multiplierToken]
-            guard let multiplier = value else { continue }
-            rows.append((name, multiplier, foldsToken == "true"))
-        }
-        return rows.map { (name: $0.0, multiplier: $0.1, folds: $0.2) }
-    }
-
-    // MARK: - 1 · Completeness (SOURCE-TEXT SCAN + the shipped library)
+    // MARK: - 1 · Completeness
 
     /// The general case of #1102's per-look pin: EVERY entry the user can select must have a
     /// budget row. This is the assertion that goes red the day a sixth look lands without one.
-    func testEveryLibraryLookHasABudgetRow() throws {
-        let source = try tableSource()
-        guard !source.isEmpty else { return }
+    func testEveryLibraryLookHasABudgetRow() {
         XCTAssertFalse(LookBlendMap.library.isEmpty, "the look library is empty — nothing is selectable")
         for look in LookBlendMap.library {
-            XCTAssertTrue(source.contains("(\"\(look.name)\","), """
-            The look "\(look.name)" (style index \(look.index)) is selectable from \
-            `LookBlendMap.library` and has NO row in the flash budget table at \
-            \(Self.budgetTable). A look with no budget has never been checked against the \
-            3 Hz WCAG ceiling, and the table is in the NON-BLOCKING suite, so nothing else \
-            will tell you. Add the row — the multiplier is the FASTEST phase-bearing term of \
-            its shader function, doubled by `folds: true` if an abs() or a square folds it — \
-            in the same commit as the library row.
-            """)
+            XCTAssertNotNil(FlashGuard.fieldBudget(forStyle: look.index), """
+                The look "\(look.name)" (style index \(look.index)) is selectable from \
+                `LookBlendMap.library` and has NO row in `FlashGuard.fieldBudgets`. A look \
+                with no budget has never been checked against the 3 Hz WCAG ceiling. Add the \
+                row — the multiplier is the FASTEST phase-bearing term of its shader \
+                function, doubled by `folds: true` if an abs(), a square, or any non-monotone \
+                map creates new extrema — in the same commit as the library row.
+                """)
         }
     }
 
-    // MARK: - 2 · The ceiling arithmetic, now inside a gate (END-TO-END BEHAVIOUR)
+    // MARK: - 2 · The ceiling arithmetic, inside a gate
 
-    /// Re-derives every parsed row through the shipped `FlashGuard.effectiveFieldHz` at the
-    /// shipped phase-rate cap and asserts the WCAG ceiling. This computation exists today
-    /// only in the suite no gate compiles.
-    func testEveryBudgetRowStaysUnderTheWCAGCeiling() throws {
-        let source = try tableSource()
-        guard !source.isEmpty else { return }
-        let rows = parsedRows(source)
-        XCTAssertGreaterThanOrEqual(rows.count, LookBlendMap.library.count, """
-        Parsed only \(rows.count) budget rows but the library has \(LookBlendMap.library.count) \
-        looks. The table's row FORMAT changed and this guard is now reading less than it \
-        claims. Fix the parser in the same commit, do not lower this bound.
-        """)
-        for row in rows {
+    /// Re-derives every row through the shipped `FlashGuard.effectiveFieldHz`. Until #1114
+    /// this computation ran only in the suite no gate compiles.
+    func testEveryBudgetRowStaysUnderTheWCAGCeiling() {
+        XCTAssertGreaterThanOrEqual(FlashGuard.fieldBudgets.count, LookBlendMap.library.count, """
+            There are \(FlashGuard.fieldBudgets.count) budget rows for \
+            \(LookBlendMap.library.count) selectable looks. Claim 1 names which look is \
+            missing; this bound is here so an EMPTIED table cannot make claim 3 vacuously \
+            pass (#1114's claim-3 lesson: never let a checker cover less than it claims).
+            """)
+        for row in FlashGuard.fieldBudgets {
             let hz = FlashGuard.effectiveFieldHz(phaseRateHz: FlashGuard.maxPulseRateHz,
-                                                 phaseMultiplier: row.multiplier,
+                                                 phaseMultiplier: row.phaseMultiplier,
                                                  folds: row.folds)
+            XCTAssertEqual(hz, row.effectiveHz, accuracy: 1e-12, """
+                "\(row.name)": the row's own `effectiveHz` (\(row.effectiveHz)) disagrees with \
+                `FlashGuard.effectiveFieldHz` (\(hz)). They must be one computation — a row \
+                that scores itself is not a check.
+                """)
             XCTAssertLessThanOrEqual(hz, FlashGuard.maxFlashHz, """
-            Look "\(row.name)" computes \(hz) Hz at the shipped phase cap \
-            (\(FlashGuard.maxPulseRateHz) Hz × \(row.multiplier)\(row.folds ? ", folded ×2" : "")), \
-            above the \(FlashGuard.maxFlashHz) Hz WCAG 2.3.1 ceiling. This is a photosensitive \
-            seizure risk, not a style question. Either lower the look's phase multiplier in \
-            the shader or take the look out of the library.
-            """)
+                "\(row.name)" (style \(row.styleIndex)) flashes at \(hz) Hz, over the WCAG \
+                ceiling of \(FlashGuard.maxFlashHz). Either the multiplier is wrong or the \
+                shader function changed under it. Do NOT raise the ceiling: the epilepsy \
+                limit is not a tuning knob. Aurora already sits at exactly 3.00, so there is \
+                no headroom to borrow from either.
+                """)
         }
     }
 
-    // MARK: - 3 · The parser cannot silently cover less than it says (SOURCE-TEXT SCAN)
+    // MARK: - 3 · The rows address distinct, real looks
 
-    /// A row whose multiplier is a symbol is invisible to `Double(...)`. Exactly one such
-    /// symbol exists today; pinning the set means a new one goes red here instead of quietly
-    /// dropping its look out of claim 2.
-    func testTheOnlySymbolicMultiplierIsTheRingsDamping() throws {
-        let source = try tableSource()
-        guard !source.isEmpty else { return }
-        XCTAssertEqual(Self.symbolicMultipliers.count, 1)
-        XCTAssertNotNil(Self.symbolicMultipliers["FlashGuard.ringsPhaseDamping"])
-        // Every `FlashGuard.` token used as a multiplier inside the table must be one we resolve.
-        for rawLine in source.split(separator: "\n") {
-            let line = String(rawLine)
-            guard !line.trimmingCharacters(in: .whitespaces).hasPrefix("//") else { continue }
-            guard line.contains("(\""), line.contains("FlashGuard.") else { continue }
-            let known = Self.symbolicMultipliers.keys.contains { line.contains($0) }
-            XCTAssertTrue(known, """
-            A budget row uses a FlashGuard symbol this guard does not resolve: \(line.trimmingCharacters(in: .whitespaces))
-            Add it to `symbolicMultipliers` so claim 2 keeps covering every row, otherwise \
-            that look silently drops out of the ceiling check.
-            """)
+    func testEveryBudgetRowNamesADistinctLibraryLook() {
+        var seen = Set<Int>()
+        for row in FlashGuard.fieldBudgets {
+            XCTAssertTrue(seen.insert(row.styleIndex).inserted, """
+                Style index \(row.styleIndex) has two budget rows. \
+                `FlashGuard.fieldBudget(forStyle:)` returns the FIRST match, so the second is \
+                dead weight that reads like coverage — and if the two disagree, the one that \
+                wins is decided by array order.
+                """)
+            XCTAssertTrue(LookBlendMap.library.contains { $0.index == row.styleIndex }, """
+                Budget row "\(row.name)" targets style \(row.styleIndex), which is not in \
+                `LookBlendMap.library`. That is not automatically wrong — a look can be \
+                retired from the UI while its shader function stays compiled — but the row \
+                then guards nothing a user can reach, and the retired styles (1 Cymatics, \
+                4 Prism, 6 Lissajous, 8 Scope, 9 Fractal) deliberately have NO rows because \
+                nobody re-derived them. Say which case this is at the row.
+                """)
         }
     }
 }

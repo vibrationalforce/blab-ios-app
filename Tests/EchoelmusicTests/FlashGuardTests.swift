@@ -143,7 +143,9 @@ final class FlashGuardTests: XCTestCase {
     ///    other multipliers are READ BY HAND from `MetalBioView.swift` and can
     ///    drift if someone edits the Metal source without updating them. A first
     ///    version of this table had three of four rows wrong, so treat the numbers
-    ///    as documentation that must be re-derived, not as a proof.
+    ///    as documentation that must be re-derived, not as a proof. (The table now
+    ///    lives in `FlashGuard.fieldBudgets`, #1123 — that changes WHERE a drift is
+    ///    visible, not WHETHER it can happen.)
     /// 2. The multipliers are the FASTEST term in each function, which for Water is a
     ///    PRODUCT of two phase-bearing factors (sum sideband f₁+f₂), for Aurora is an
     ///    `abs()` FOLD of a phase-bearing wave, and for Depth is a plain rate whose
@@ -157,55 +159,22 @@ final class FlashGuardTests: XCTestCase {
         // with a comment pointing at MetalBioView, so raising the renderer's cap left the
         // whole proof below green while Aurora (0 margin, see below) went to 3.6 Hz.
         let maxPhaseRate = FlashGuard.maxPulseRateHz
-        // (multiplier, folds) of the FASTEST temporal term in each shader function.
-        let looks: [(name: String, phaseMultiplier: Double, folds: Bool)] = [
-            // fieldRings: p = 0.5·phase, then interference INTENSITY (bipolar square).
-            ("Rings",  FlashGuard.ringsPhaseDamping, true),                 // → 2.50 Hz
-            // fieldWater: sin(x·s + t)·cos(y·(0.818·s) − 0.7t), t = 0.4·phase.
-            // PRODUCT of two phase-bearing factors ⇒ sum sideband 0.4 + 0.28 = 0.68.
-            // #1078 gave `s` the capillary law (s ∝ toneHz^(2/3)) and moved breath onto
-            // the sum's AMPLITUDE. Neither touches a phase-bearing term — `s` multiplies
-            // the SPATIAL coordinate, breath carries no phase and multiplies an already
-            // summed non-phase-bearing quantity — so this row is unchanged BY STRUCTURE,
-            // not by luck. The mutual ratios replaced additive offsets in the same slice;
-            // the shorthand above follows the code so it cannot drift into describing a
-            // line that is no longer there.
-            ("Water",  0.68, false),                                        // → 1.70 Hz
-            // fieldDish (#1101/#1102, the former Plasma slot): the ONLY phase-bearing term
-            // is `breathe = 0.85 + 0.15·sin(0.4·phase)`; it enters the lens strength `c`
-            // linearly and the caustic (1 − c)/(1 − c·h) is monotone in c at every fixed
-            // h — no product of two phase-bearing factors, no abs(), no square ⇒ 0.40, no
-            // fold. `dishStrength` is the eased music level (tau 0.5 s), not phase-bearing.
-            // Pinned at the shader by `TheWaterDishIsLitLikeTheExperimentTests`.
-            ("Dish",   0.40, false),                                        // → 1.00 Hz
-            // fieldAurora: abs(p.y − wave) FOLDS a wave whose fastest term is
-            // 1.0·t = 0.35·phase ⇒ 0.70. The curtain is then MULTIPLIED by
-            // `breathe` (0.5·phase), adding a 0.70 + 0.50 = 1.20 sideband ⇒ 3.00 Hz.
-            // Aurora therefore sits exactly ON the limit with ZERO margin — the
-            // worst-case row in the app. Do not add any further phase term to it.
-            ("Aurora", 1.20, false),                                        // → 3.00 Hz
-            // fieldDepthCaustics (#1117 rebuilt it as a real ray map): the ONLY phase-bearing
-            // term is `breathe = 0.85 + 0.15·sin(0.30·phase)`, which enters the focus number
-            // φ. Unlike `fieldDish`'s lens law, the illumination 1/|det J| is NOT monotone in
-            // φ — it PEAKS at the caustic — so a pixel near a fold can cross it twice per
-            // cycle. That fold is real and is declared here rather than argued away ⇒
-            // (0.30, folds: true). Everything else in the function is monotone: `pow` on a
-            // non-negative field, `clamp`, `min`, and the weighted mean over the three
-            // depths. `dishStrength` is the eased music level and `breath` a ≤0.5 Hz body
-            // signal on the viewing depth — neither carries the pulse phase.
-            // ⛔ THE ROW IT REPLACES read `("Depth", 0.72, false) → 1.80 Hz` and described
-            // `sin(x·s + t)·cos(y·s − 0.8t)`. That code no longer exists; the new number is
-            // LOWER and its `folds` flag is now true, so the change is stricter in the term
-            // that matters and calmer in the rate.
-            ("Depth",  0.30, true)                                          // → 1.50 Hz
-        ]
-        for look in looks {
+        // ⛔ THE TABLE ITSELF MOVED TO `FlashGuard.fieldBudgets` (#1123). It used to be a
+        // literal array RIGHT HERE, in the suite no gate compiles (#208) — so the numbers
+        // deciding a WCAG safety property were structurally documentation. #1114 pulled the
+        // arithmetic into the blocking bundle by parsing this file as text; #1123 moved the
+        // data into the law instead, where the shader's own caller can read it. Each row's
+        // derivation moved with it and is written at the row.
+        for look in FlashGuard.fieldBudgets {
             let hz = FlashGuard.effectiveFieldHz(phaseRateHz: maxPhaseRate,
                                                  phaseMultiplier: look.phaseMultiplier,
                                                  folds: look.folds)
             XCTAssertLessThanOrEqual(hz, FlashGuard.maxFlashHz,
                                      "\(look.name) flashes at \(hz) Hz — over the WCAG 3 Hz law")
+            XCTAssertEqual(hz, look.effectiveHz, accuracy: 1e-12,
+                           "\(look.name): the row's own `effectiveHz` disagrees with the free function")
         }
+        XCTAssertFalse(FlashGuard.fieldBudgets.isEmpty, "the budget table is empty — nothing was checked")
     }
 
     /// The app ceiling is what makes the table above pass, so pin the RELATIONSHIP rather

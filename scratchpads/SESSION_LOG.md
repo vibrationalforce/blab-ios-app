@@ -26262,3 +26262,35 @@ VJ-Blackout ist außerdem gewollt (Aesthetic-Maximalist-Sitz), also keine stille
 Ebenso der 60-fps-Pin: `ResourceGovernor` nennt seinen Grund (ein Neusetzen von
 `preferredFramesPerSecond` konfiguriert die CADisplayLink um, sichtbarer Kadenz-Ruckler) und
 der Grund hält.
+
+## #1123 — Das Blitz-Budget zieht in das Gesetz, aus der Suite, die kein Gate baut (2026-09-08)
+
+Die Tabelle, die für jeden Look entscheidet, wie oft er blitzen darf, war ein **Literal-Array
+in `Tests/EchoelmusicTests/FlashGuardTests.swift`** — also in der NICHT blockierenden Suite
+(#208, kein Gate kompiliert sie). Zahlen, die eine WCAG-Sicherheitseigenschaft bestimmen,
+waren strukturell Dokumentation.
+
+#1114 hatte die **Arithmetik** ins blockierende Bündel geholt, indem es die Datei als TEXT
+parste. #1123 zieht die **Daten** selbst um: `FlashGuard.fieldBudgets`, kompiliertes Gesetz,
+mit `fieldBudget(forStyle:)` als Nachschlag. Jede Zeilen-Herleitung ist mitgewandert und steht
+an ihrer Zeile.
+
+Damit braucht der blockierende Wächter keinen Parser mehr und liest die Werte typisiert —
+strikt stärker, weil ein Parser immer nur prüfen kann, was er zu treffen schafft.
+
+⛔ **Ein Anspruch ist mit dem Parser weggefallen, und zwar ausdrücklich, nicht still.**
+#1114s Anspruch 3 nagelte fest, dass `FlashGuard.ringsPhaseDamping` der einzige SYMBOLISCHE
+Multiplikator in der Tabelle ist — damit eine künftige symbolische Zeile nicht unaufgelöst
+durch den Parser rutscht. Bei typisierter Tabelle löst der Compiler jeden Wert auf; die
+Fehlerart kann nicht mehr auftreten. Der Ersatz prüft, was noch entscheidbar ist: die Zeilen
+adressieren **verschiedene** Stile und jede nennt einen **echten** Bibliotheks-Look.
+
+⭐ **Und der eigentliche Zweck ist die NÄCHSTE Scheibe.** `fieldBudget(forStyle:)` ist das
+Stück, das die A↔B-Mischung braucht: zwei gemischte Looks zeigen einem Pixel die VEREINIGUNG
+beider Blitzzahlen, und **Aurora allein sitzt schon bei exakt 3,00 Hz ohne Rand** — in
+`defaultSequence`. Wasser + Aurora in der Mitte des Reglers wären rechnerisch 4,70 Hz. Das Loch
+ist echt, es steht seit #1114 im Wächter-Kopf benannt, und jetzt existiert das Werkzeug, es zu
+schließen. `nil` heißt dabei ausdrücklich **unbekannt, nicht kostenlos** — ein Aufrufer muss
+das Schlimmste annehmen.
+
+Kein Pixel ändert sich in dieser Scheibe. Drei Ansprüche transkribiert GRÜN.

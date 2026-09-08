@@ -269,6 +269,74 @@ public enum FlashGuard {
         return folds ? base * 2 : base
     }
 
+    // MARK: - The per-look flash budget (#1123)
+
+    /// What one selectable look costs in flashes per second.
+    ///
+    /// ⛔ THIS TABLE LIVED IN `Tests/EchoelmusicTests/FlashGuardTests.swift` UNTIL #1123, AND
+    /// THAT IS THE NON-BLOCKING SUITE — no gate compiles it (#208). So the numbers that
+    /// decide a WCAG safety property were, structurally, documentation. #1114 pulled the
+    /// ARITHMETIC into the blocking bundle by parsing the file as TEXT; this moves the DATA
+    /// itself into the law, where the shader's own caller can read it and a parser is no
+    /// longer needed for anything.
+    ///
+    /// `phaseMultiplier` is the FASTEST phase-bearing term of that look's shader function,
+    /// and `folds` doubles it when an `abs()`, a square, or a non-monotone map creates new
+    /// extrema. The derivation per row is written at the row — re-derive it when you touch
+    /// the function, never copy the number forward.
+    public struct FieldFlashBudget: Sendable, Equatable {
+        public let styleIndex: Int
+        public let name: String
+        public let phaseMultiplier: Double
+        public let folds: Bool
+
+        /// Flashes per second at the app's own phase ceiling.
+        public var effectiveHz: Double {
+            FlashGuard.effectiveFieldHz(phaseRateHz: FlashGuard.maxPulseRateHz,
+                                        phaseMultiplier: phaseMultiplier, folds: folds)
+        }
+    }
+
+    /// One row per look a user can select (`LookBlendMap.library`). Style indices are the
+    /// shader's, not positions in this array.
+    public static let fieldBudgets: [FieldFlashBudget] = [
+        // fieldRings: p = 0.5·phase, then interference INTENSITY (a bipolar square) folds it.
+        .init(styleIndex: 0, name: "Rings", phaseMultiplier: ringsPhaseDamping, folds: true),
+        // fieldDish (#1101/#1102, the former Plasma slot): the ONLY phase-bearing term is
+        // `breathe = 0.85 + 0.15·sin(0.4·phase)`; it enters the lens strength `c` linearly and
+        // (1 − c)/(1 − c·h) is monotone in c at every fixed h — no product of two phase-bearing
+        // factors, no abs(), no square. `dishStrength` is the eased music level, not a phase.
+        .init(styleIndex: 2, name: "Dish", phaseMultiplier: 0.40, folds: false),
+        // fieldWater: sin(x·s + t)·cos(y·(0.818·s) − 0.7t), t = 0.4·phase. PRODUCT of two
+        // phase-bearing factors ⇒ sum sideband 0.4 + 0.28 = 0.68. #1078 gave `s` the capillary
+        // law and moved breath onto the sum's AMPLITUDE; neither touches a phase-bearing term
+        // (`s` multiplies the SPATIAL coordinate), so this row is unchanged BY STRUCTURE.
+        .init(styleIndex: 3, name: "Water", phaseMultiplier: 0.68, folds: false),
+        // fieldAurora: abs(p.y − wave) FOLDS a wave whose fastest term is 1.0·t = 0.35·phase
+        // ⇒ 0.70. The curtain is then MULTIPLIED by `breathe` (0.5·phase), adding a
+        // 0.70 + 0.50 = 1.20 sideband ⇒ 3.00 Hz. ⚠️ AURORA SITS EXACTLY ON THE LIMIT WITH ZERO
+        // MARGIN — the worst-case row in the app, and it is in `LookBlendMap.defaultSequence`.
+        // Do not add any further phase term to it.
+        .init(styleIndex: 5, name: "Aurora", phaseMultiplier: 1.20, folds: false),
+        // fieldDepthCaustics (#1117 rebuilt it as a real ray map): the only phase-bearing term
+        // is `breathe = 0.85 + 0.15·sin(0.30·phase)`, entering the focus number φ. Unlike the
+        // dish's lens law, 1/|det J| is NOT monotone in φ — it peaks AT the caustic — so a
+        // pixel near a fold can cross it twice per cycle. That fold is declared, not argued
+        // away. ⛔ The row it replaces read (0.72, folds: false) → 1.80 Hz and described a
+        // sine product that no longer exists.
+        .init(styleIndex: 7, name: "Depth", phaseMultiplier: 0.30, folds: true),
+    ]
+
+    /// The budget for a style index, or `nil` for one that has none.
+    ///
+    /// ⚠️ `nil` MEANS "UNKNOWN", NOT "FREE". A caller that cannot find a row must assume the
+    /// worst (`maxFlashHz`), never zero — the retired styles still compiled in the shader
+    /// (1 Cymatics, 4 Prism, 6 Lissajous, 8 Scope, 9 Fractal) have no rows precisely because
+    /// nobody re-derived them, not because they are calm.
+    public static func fieldBudget(forStyle index: Int) -> FieldFlashBudget? {
+        fieldBudgets.first { $0.styleIndex == index }
+    }
+
     /// Whether a transition between two relative luminances [0,1] counts as a
     /// WCAG "general flash" (such a pair repeating >3×/s is the seizure risk).
     public static func isFlash(from a: Double, to b: Double) -> Bool {
