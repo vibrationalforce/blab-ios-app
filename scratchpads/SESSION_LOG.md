@@ -27086,3 +27086,49 @@ Moment nicht gelesen). Wächter `TheBreathFieldCarriesTwoQuantitiesTests`: 4 Ans
 6 Prüfungen, in Python getrieben, **alle bestanden**; Klammern ausgeglichen; Mutanten-Probe
 (`0.8` → `0.9`) trifft die Nadel nicht. Er verbietet nichts (#364) — er wird rot, wenn eine der
 gemessenen Stellen sich bewegt, und nennt jeweils die Prosa, die dann mitzuziehen ist.
+
+## #1147 — die Datei, die eine Sitzung beim Wort „Cymatics" zuerst findet, schickte sie zu einem toten Enum
+
+Auf dem Founder-Ask „generative and physical association Visuals weiter entwickeln" plus
+Aufgabe #21 („physikalisch echte Visuals ergänzen — Wasserklangbilder / Cymatics") habe ich
+gesucht, wo eine Sitzung landet, die genau das baut. Sie landet in
+`Studio/BioVisualParams.swift`.
+
+**Gemessen:**
+· Der Dateikopf versprach zwei reichere GPU-Kerne als nächsten Schritt — einen Cymatics- und
+  einen Mandala-Kern. **Cymatics ist längst ausgeliefert**, aber woanders: als `fieldDish`
+  (Shader-Style 2), getrieben von `Core/FaradayDish` (echtes Faraday-Instabilitätsmodell,
+  #1100/#1101). Durch DIESE Datei kam nichts davon.
+· `git grep -n "BioVisualPattern" -- Sources` (Kommentare gestrippt) liefert **nur die eigene
+  Datei**. Das Enum `rings/cymatics/mandala` und das Feld `.pattern` haben null Verbraucher —
+  ein ganzes PARALLELES Look-System, das nichts rendert, neben dem echten in
+  `LookBlendMap.library` (fünf Einträge: Rings 0 · Dish 2 · Water 3 · Aurora 5 · Depth 7).
+· `mandala` wurde nie gebaut.
+
+⭐ **Warum es zwei Verbraucher-Audits überlebt hat, und das ist die Lehre:** #1116 und #1131
+haben die FELDER dieser `struct` durchgegangen und vier davon korrekt mit `⛔ NO CONSUMER`
+markiert. Beide haben `.pattern` ausgelassen — und zwar, weil es das erste Feld ist und sein
+Defekt nicht im Feld sitzt, sondern in seinem **TYP**. **Ein Feld-für-Feld-Audit fragt nicht,
+was der Typ eines Feldes selbst ist.**
+
+⛔ **Nicht gelöscht, und der Grund ist keine Sentimentalität:** das Enum ist `String`-backed und
+`BioVisualParams` ist ein öffentlicher Werttyp — ein persistiertes Dokument könnte einen dieser
+rawValues tragen. Einen Case zu entfernen ist eine Schema-Entscheidung, kein Aufräumen. Falsch
+war die BEHAUPTUNG, hier füge man einen Look hinzu; die ist zurückgenommen, und der Kopf sagt
+jetzt, wo es wirklich geht (Shader-Branch + Zeile in `LookBlendMap.library` + Zeile in
+`FlashGuard.fieldBudgets` — wer nur eine der beiden Zeilen schreibt, hat einen Look ohne
+Blitz-Budget).
+
+⚠️ **DIE SELBSTBEZÜGLICHE NADEL IST ZUM DRITTEN MAL ZUGESCHNAPPT — und diesmal beim Treiben
+gefangen, nicht beim Nachlesen.** Meine erste Rücknahme ZITIERTE den gestrichenen Satz wörtlich
+und wurde damit selbst sein einziger Treffer; Anspruch 3a war rot auf einem korrekten Baum. Die
+Rücknahme ist jetzt bewusst PARAPHRASIERT, und der Grund steht an der Zeile. Frühere Auflagen:
+#1142 (Ledger-Kopf), #1144 (Chip-Kommentar). **Es ist kein Zufall mehr, sondern eine Klasse: wer
+eine Abwesenheit prüft, darf die Sache in derselben Datei nicht benennen.**
+
+Wächter `TheLookSystemHasOneHomeTests`: 3 Ansprüche, 6 Prüfungen (inkl. Sanity auf den
+Datei-Walk: 377 Quelldateien), in Python getrieben, **alle bestanden**; Klammern ausgeglichen;
+Mutanten-Probe auf 3a schlägt korrekt fehl. **Keine ZAHL gepinnt** (#818): der Roster ging von
+vier auf fünf, als der Dish kam, und kann wieder wandern — gepinnt ist die STRUKTUR, nicht ihre
+Größe. Verbietet nichts (#364): sollte jemand das Enum verdrahten, wird Anspruch 1 rot und sagt
+in seiner Meldung, die Rücknahme sei dann mitzuziehen — nicht die Verdrahtung zurückzunehmen.

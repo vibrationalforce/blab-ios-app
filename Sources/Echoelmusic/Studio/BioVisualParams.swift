@@ -5,9 +5,28 @@
 //  Rebuilt-new foundation for the bio-reactive visual engine (the honest
 //  realization of the old "VisualForge" intent — science-visual, not esoterica).
 //  ONE pure value type centralizes the body→image mapping so every renderer
-//  (the live Metal ring view, and the richer Cymatics/Mandala GPU kernels next)
 //  reads the SAME flash-safe parameters. Pure, Sendable, deterministic, fully
 //  unit-tested — no Metal, no SwiftUI here.
+//
+//  ⛔ THIS HEADER PROMISED TWO RICHER GPU KERNELS AS THE NEXT STEP — a cymatics one and a
+//  mandala one — AND THAT PLAN WAS OVERTAKEN, NOT ABANDONED (#1147, measured). The struck
+//  sentence is deliberately PARAPHRASED and not quoted: `TheLookSystemHasOneHomeTests`
+//  claim 3 scans this file for its absence, and a verbatim quotation here would be the only
+//  remaining match — the retraction would refute itself. That trap has now fired three times
+//  in this repo (#1142 header, #1144 chip comment, here) and it fired again during this very
+//  edit, caught by driving the guard instead of trusting it. Cymatics SHIPPED — as
+//  `fieldDish` at shader style index 2, driven by `Core/FaradayDish` (a real Faraday
+//  instability model, pinned before a pixel depended on it, #1100/#1101). It did NOT
+//  arrive through this file, and nothing here was involved. A session sent here by the
+//  word "Cymatics" would build a second one against a dead enum.
+//
+//  ⭐ WHERE THE LIVE LOOK SYSTEM ACTUALLY IS, so the next reader goes to the right place
+//  on the first try: `Studio/LookBlendMap.library` is the curated roster the user can
+//  select — five entries, `(0, "Rings") (2, "Dish") (3, "Water") (5, "Aurora")
+//  (7, "Depth")` — the indices are the shader's `styleField` branches in
+//  `Views/MetalBioView.swift`, and `Core/FlashGuard.fieldBudgets` carries one flash
+//  budget per selectable look. Adding a look means a shader branch plus a row in each of
+//  those two, never a case in the enum below.
 //
 //  Flash safety is baked in: pulse frequency is routed through FlashGuard (≤3 Hz
 //  WCAG, 0 under Reduce Motion), so no renderer can strobe by construction.
@@ -16,6 +35,18 @@
 import Foundation
 
 /// The visual pattern a renderer draws. Each maps the same bio params differently.
+///
+/// ⛔ NO CONSUMER (#1147, measured) — the same defect #1116 took back on `hue` and #1131 on
+/// three more fields, one level up: this is a whole parallel LOOK SYSTEM that nothing renders.
+/// `git grep -n "BioVisualPattern" -- Sources` returns only this file, and `.pattern` below is
+/// read nowhere outside it. Its three cases do not correspond to the five shipped looks either
+/// — `mandala` was never built at all, and `cymatics` names a capability that exists under a
+/// different name in a different file (see the header).
+///
+/// ⚠️ NOT DELETED, AND THE REASON IS NOT SENTIMENT: the enum is `String`-backed and
+/// `BioVisualParams` is a public value type, so a persisted document or a future decoder could
+/// still carry one of these raw values. Removing a case is a schema decision, not a cleanup.
+/// What IS a defect is claiming it is the way to add a look — that claim is retracted above.
 public enum BioVisualPattern: String, CaseIterable, Sendable, Identifiable {
     /// Concentric heartbeat rings (the current live look).
     case rings
@@ -40,6 +71,11 @@ public enum BioVisualPattern: String, CaseIterable, Sendable, Identifiable {
 public struct BioVisualParams: Sendable, Equatable {
 
     /// Which pattern to draw.
+    ///
+    /// ⛔ NO CONSUMER (#1147, measured) — see the enum's own note. This was the ONE field of
+    /// this struct without such a marker while its four neighbours all carried one, which is
+    /// why the dead look-system survived two consumer audits: #1116 and #1131 both walked the
+    /// FIELDS and neither asked what the first field's TYPE was.
     public var pattern: BioVisualPattern
     /// Heartbeat pulse frequency in Hz — already flash-clamped (0…3 Hz; 0 = still).
     public var pulseHz: Double
