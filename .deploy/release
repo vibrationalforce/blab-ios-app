@@ -1,6 +1,101 @@
-build: v10.79.461 — mit Brustgurt stand Dein Bild dauerhaft auf „voll ausgeatmet"; jetzt ruht es in der Mitte
+build: v10.79.462 — Dein Bild atmet jetzt richtig herum: weit bei voller Lunge, schmal bei leerer
 branch: claude/echoelmusic-neustart-auv3-6ri2ek (tokenless deploy via .deploy/release bump)
 notes: |
+  ⚠ AN DIE NÄCHSTE SESSION: die Versionsnummer in Zeile 1 MUSS die erste im ganzen File
+  sein. CI greift mit `grep -m1 -oE 'v[0-9]+\.[0-9]+\.[0-9]+'` über die GESAMTE Datei und
+  nimmt den ersten Treffer. Deshalb stehen die Vorgänger unten ohne `v`.
+  Wächter im blockierenden Bundle: `TheShippedVersionComesFromTheReleaseFileTests` (#635).
+
+  Der Vorgänger ist 10.79.461.
+
+  ── DER ATEM WAR AM BILD VERKEHRT HERUM ANGESCHLOSSEN ────────────────────
+
+  **Das ist die eine echte Änderung in diesem Build, und sie ist groß.**
+
+  Der Bildrechner schickte Deinen Atemwert durch eine Bergkurve. Die passt zu einem
+  Signal, das von 0 auf 1 hochläuft und dann springt. Deine Fingerkamera liefert aber
+  etwas anderes: einen weichen Verlauf, bei dem **1 = Lunge voll** und **0 = Lunge leer**
+  bedeutet. Das ist schon genau die Größe, die das Bild will.
+
+  Durch die Bergkurve kam heraus:
+
+  | Lunge | Kamera | **vorher** | **jetzt** |
+  |---|---|---|---|
+  | leer | 0,0 | 0,850 am schmalsten | 0,850 am schmalsten ✓ |
+  | halb | 0,5 | **1,200 am WEITESTEN** | 1,025 Mitte |
+  | **voll** | 1,0 | **0,850 am SCHMALSTEN** | **1,200 am weitesten** |
+
+  Nur das leere Ende stimmte — und das war Zufall. **Genau beim tiefsten Einatmen zog
+  sich das Bild zusammen.** Deine Ansage für Aurora war „der Vorhang soll mit Deinem Atem
+  kommen und gehen"; bekommen hast Du zwei halbe Wellen pro Atemzug, am Höhepunkt
+  gegenläufig.
+
+  Jetzt folgt das Bild Deinem Lungenvolumen: **voll = weit und hell, leer = schmal und
+  dunkel, einmal pro Atemzug.**
+
+  ⭐ **Blitz-Sicherheit wird dabei BESSER, nicht schlechter.** Die Bergkurve durchlief
+  ihren Gipfel zweimal pro Atemzug, der rohe Wert einmal — halbiert. Auroras Zeile bleibt
+  bei 1,75 Hz, Rings bleibt der engste Look mit 2,50 Hz.
+
+  ⚠️ **Was Du prüfen kannst:** Fingerkamera auf, ruhig und tief atmen. Das Bild soll
+  **mit dem Einatmen aufgehen** und beim Ausatmen zurückgehen — einmal pro Atemzug, nicht
+  zweimal. Fühlt es sich zu stark oder zu schwach an, sag „mehr" oder „weniger".
+
+  ── ICH NEHME ETWAS ZURÜCK, DAS ICH DIR ZU 461 GESCHRIEBEN HABE ──────────
+
+  In der 461er-Notiz steht, die Kamera liefere eine Atem-**Hüllkurve**. **Das war falsch.**
+  Ich hatte es aus dem Quelltext übernommen, wo es seit Langem so stand, ohne es
+  nachzurechnen.
+
+  Nachgerechnet ist es ein **Sinus** — die echte Hüllkurve steht im *Nenner* der Formel.
+  Gemessen: Spanne genau 0…1, Mittel 0,5000, einmal pro Atemzug rauf und runter; die
+  echte Hüllkurve bewegt sich derweil kaum.
+
+  **Warum das kein Wortstreit ist:** Wäre es eine Hüllkurve, wäre gar keine Atem-Position
+  enthalten, und die Reparatur oben wäre unmöglich gewesen. Weil es ein Sinus ist, war die
+  Position die ganze Zeit da — nur in der falschen Form verarbeitet. Die eine falsche
+  Vokabel hat also den Fehler oben ein Vierteljahr lang unsichtbar gemacht.
+
+  Was ich Dir zu 461 über das SEHEN geschrieben habe, stimmte trotzdem (hell in der Mitte,
+  dunkel an beiden Enden, doppelt so schnell). Richtige Beobachtung, falsche Begründung.
+
+  ── WAS AUS 461 UNVERÄNDERT GILT ─────────────────────────────────────────
+
+  Mit **Brustgurt** oder **Gesichtskamera** stand Dein Bild vorher dauerhaft auf „voll
+  ausgeatmet". Das ist seit 461 behoben und in diesem Build gleich geblieben: ohne
+  gemessenen Atem ruht das Bild in der Mitte. Wer mit Fingerkamera und gemessenem Atem
+  arbeitet, sieht dagegen JETZT die Änderung von oben.
+
+  ── ZWEI SACHEN, DIE ICH ABSICHTLICH NICHT MITREPARIERT HABE ─────────────
+
+  · **Der Datenvertrag stimmt weiter nicht.** Die Kamera schreibt einen Sinus, wo ein
+    Sägezahn versprochen ist. Das betrifft fünf Abnehmer — auch die Licht- und
+    Raumausgänge (OSC · ADM-OSC · Art-Net) — und ist eine eigene Runde. Das Bild ist
+    davon ab jetzt unabhängig richtig; Licht und Raum noch nicht.
+  · **Neuer Fund, Apple Watch:** dort kann die Atem-RATE echt sein, während die
+    Atem-POSITION nie von der Mitte weggeht — nichts schreibt sie außerhalb des
+    Demo-Timers. Das Tor öffnet also auf einem eingefrorenen Wert. Neutral, nicht
+    verkehrt — aber kein Atem. Steht als eigene Aufgabe.
+
+  ── EINE LEHRE ÜBER MEINE EIGENEN PRÜFUNGEN ──────────────────────────────
+
+  Der Wächter, den ich 40 Minuten vorher geschrieben hatte, **verlangte die Bergkurve**.
+  Hätte ich ihn stehen lassen, wäre er beim richtigen Fix rot geworden und hätte gelesen
+  wie „dieser Fix ist verboten". Ein Wächter, der seine eigene Voraussetzung überlebt,
+  muss mit ihr umziehen — sonst schützt er einen Fehler statt eines Gesetzes.
+
+  ── OFFEN FÜR DEIN AUGE ──────────────────────────────────────────────────
+
+  Die sechs Bild-Punkte aus 460 warten unverändert: Aurora (Atem + Strahlen), Rings
+  (Ringabstand bei steigendem Ton), Tiefen-Licht (Schwimmbadboden), Look-Regler-Mischung,
+  „Reduzierte Bewegung" auf dem Beamer und der Dish aus 459. Die Prüfschritte stehen in
+  der 460er-Notiz weiter unten. Die Website sagt weiter „four generative looks" — das wird
+  erst „five", wenn Du den Dish gesehen und angenommen hast.
+
+  ⚠️ **Geräteverifiziert ist nichts davon.** Beide Gates sind grün (Compile-Check und
+  Testbau), die Rechnung ist von Hand gegengeprüft — ob es sich RICHTIG anfühlt, weiß nur
+  Dein Gerät.
+
   ⚠ AN DIE NÄCHSTE SESSION: die Versionsnummer in Zeile 1 MUSS die erste im ganzen File
   sein. CI greift mit `grep -m1 -oE 'v[0-9]+\.[0-9]+\.[0-9]+'` über die GESAMTE Datei und
   nimmt den ersten Treffer. Deshalb steht der Vorgänger unten ohne `v`.
