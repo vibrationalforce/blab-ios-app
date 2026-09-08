@@ -54,11 +54,41 @@ public struct BioVisualParams: Sendable, Equatable {
     /// is the natural consumer. **Do not quote it as a shipping mapping** — six website
     /// lines did exactly that until #1116 took them back.
     public var hue: Double
-    /// Pattern complexity [0…1]; HRV drives ring count / Chladni order.
+    /// Pattern complexity [0…1]; HRV would drive ring count / Chladni order.
+    ///
+    /// ⛔ NO CONSUMER (#1131, measured) — THE SAME DEFECT #1116 TOOK BACK ON `hue`, LEFT
+    /// STANDING ON ITS THREE NEIGHBOURS. `git grep -nE "\bvp\.[a-z]" -- Sources` returns
+    /// **exactly one** line in the whole repo (`vp.pulseHz`, `MetalBioView.swift:1156`), so
+    /// this value is computed on every frame and read by nothing. The doc said "HRV drives
+    /// ring count" in the present tense; it now says "would".
+    ///
+    /// ⚠️ AND THIS IS THE ONE THAT MATTERS MOST OF THE THREE, because it is the app's ONLY
+    /// HRV→picture mapping. The body has four measured channels; the sound uses all four
+    /// (`hrvForSound` → brightness), the picture receives three — heart rate through
+    /// `pulseHz`, breath and coherence through the shader's OWN terms — and HRV's single
+    /// path ends here. Wiring it is a real slice with a real hazard (`BioUniforms` ↔ the
+    /// MSL `Uniforms` are hand-mirrored by BYTE LAYOUT, 99 fields, no compiler check, #1119
+    /// — only END appends are safe), which is why this commit tells the truth instead of
+    /// reaching for the shader in the same breath.
+    ///
+    /// ⚠️ "Chladni order" names style 1, RETIRED from `LookBlendMap.library`. Kept, not
+    /// deleted, for the #527 reason: this struct is the ONE pure bio→visual mapping and a
+    /// future surface is its natural consumer. **Do not quote it as a shipping mapping.**
     public var complexity: Double
-    /// Breath spread factor [~0.85…1.15]; the figure expands on the inhale.
+    /// Breath spread factor [~0.85…1.15]; the figure would expand on the inhale.
+    ///
+    /// ⛔ NO CONSUMER (#1131, measured) — see `complexity`.
+    /// ⚠️ BUT DO NOT READ THIS AS "BREATH DOES NOT REACH THE PICTURE". It does, through the
+    /// shader's own term (`float spread = (0.85 + u.breath * 0.35) * clamp(u.spread, …)`),
+    /// fed by the `breath:` argument of `update()`. What is dead is this FIELD, not the
+    /// capability — and stating the stronger, wrong version would be the mirror of the
+    /// error #1130 corrected on the other side.
     public var spread: Double
-    /// Overall brightness/intensity [0…1]; coherence makes it fuller.
+    /// Overall brightness/intensity [0…1]; coherence would make it fuller.
+    ///
+    /// ⛔ NO CONSUMER (#1131, measured) — see `complexity`. Coherence itself DOES reach the
+    /// picture (the `coherence:` argument of `update()`, which every field function reads);
+    /// what is dead is this field.
     public var intensity: Double
 
     public init(pattern: BioVisualPattern, pulseHz: Double, hue: Double,

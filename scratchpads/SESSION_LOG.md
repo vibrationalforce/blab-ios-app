@@ -26527,3 +26527,50 @@ driven in Python against the real tree: 9/9 shader needles unique, 4/4 rates exa
 retired-index facts, 7/7 prose needles unique. Three mutants would go red: calming Scope's
 `t * 1.3` (claim 1), adding a Scope row (claim 3 + the existing suite), raising the ceiling to
 4.0 (claim 2). Nothing here changes a shipped pixel — no behaviour change, docs and a guard.
+
+## #1131 — `BioVisualParams` has six fields and ONE consumer; three of the four dead ones still claimed a live mapping (2026-09-08)
+
+Started as "does HRV reach the picture at all?" and the answer turned out to be more precise
+and more useful than either yes or no.
+
+**Measured.** `git grep`-equivalent over all 377 Swift files under `Sources/`, comments
+blanked: **`vp.<field>` is read exactly ONCE in the whole repo** — `vp.pulseHz`,
+`MetalBioView.swift:1156`. #1116 measured this and took the claim back on `hue`. It left the
+identical claim standing on `complexity`, `spread` and `intensity`, whose docs went on
+describing live mappings in the present tense ("HRV drives ring count / Chladni order", "the
+figure expands on the inhale", "coherence makes it fuller"). **The #496 shape exactly: one
+channel corrected, its neighbours not, because only the corrected one had been asked about.**
+
+**Why `complexity` is the expensive one.** It is the app's ONLY HRV→picture path. The body
+has four measured channels; the SOUND uses all four (`hrvForSound` → brightness), the picture
+gets three — heart rate through `pulseHz`, breath and coherence through the shader's OWN
+terms (`float spread = (0.85 + u.breath * 0.35) * …`, and the `coherence:` argument every
+field function reads). HRV's single route ends in a field nothing reads.
+
+**And the gating question answered itself in the strongest direction.** I set out to check
+whether HRV is even distinguishable from coherence (coherence is derived from HRV, so it
+might be redundant). `HealthKitBioPublisher` settles it: it publishes a real
+`hrvNormalized` and a hard-coded `coherence: 0`, with the reason at the line — HealthKit
+exposes averaged HR + SDNN, not beat-to-beat RR, so there is no trustworthy spectral
+coherence to publish. **For a Watch/HealthKit user the picture's coherence channel is the
+neutral 0.5 substitute while a real measured HRV sits unused next to it.** Not redundant;
+complementary.
+
+**Not wired in this slice, deliberately.** Adding a channel means a new field in
+`BioUniforms`, which is hand-mirrored to the MSL `Uniforms` by BYTE LAYOUT — 99 fields, no
+compiler check (#1119), only END appends safe. Doc-correction and shader-surgery in one
+commit is how that hazard gets tripped. The retraction now names the hazard at the field, so
+the next reader cannot see "dead HRV path, obvious fix" and append in the middle.
+
+**The counterweight is half the work.** "This field is dead" must never be read as "breath
+and coherence do not reach the picture" — they do. Claim 3 of the new guard pins both routes
+so a later session cannot over-correct. Overstating a retraction is the mirror of the
+overclaim it retracts, the shape #1130 had to fix on the other side.
+
+**Transcribed and driven in Python against the real tree:** 11 checks, all green. One FAIL
+appeared and was **my transcription's fault, not the guard's** — I truncated the recorded
+line to 70 chars, which cut off the `vp.pulseHz` the assertion looks for; re-driven without
+the truncation it passes. Worth recording: a transcription can produce a false RED as easily
+as a false green, and the fix is to re-drive the single check, not to edit the guard.
+Four mutants would go red (wire a field · delete a note · remove the shader term · rename
+`pulseHz`). No behaviour change: docs and a guard.
