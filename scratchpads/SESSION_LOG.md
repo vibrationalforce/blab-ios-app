@@ -26345,3 +26345,42 @@ gefunden wurde: eine benannte Grenze ist eine Aufgabe, die Kontextverlust überl
 
 NEEDS-FOUNDER-VERIFY: den Look-Regler von Wasser durch Aurora ziehen — in der Mitte soll die
 Bewegung leicht langsamer werden, an beiden Enden unverändert sein.
+
+## #1125 — Aurora bekommt echte Physik und zum ersten Mal die klingende Tonhöhe (2026-09-08)
+
+**Befund, gemessen:** `fieldAurora` hatte `toneHz` **nicht einmal als Parameter** — dieselbe
+Lücke, die Slice 1 aus `fieldWater` und #1117 aus `fieldDepthCaustics` entfernt hat, und sie
+hatte hier am längsten überlebt. Aurora steht in `LookBlendMap.defaultSequence`, also sieht sie
+jeder Nutzer.
+
+**Warum es niemandem auffiel: ein WAHRER Satz hat den Defekt verdeckt.** Der Kopf sagte
+„Colour comes from the tone … a real pitch→hue aurora". Für die APP stimmt das
+(`toneCloudColour` setzt die Notenfarben), für die FUNKTION nicht — sie liefert ein Skalar und
+sah `toneHz` nie. Wer prüfte, ob die Tonhöhe hier ankommt, fand einen Satz, der ja sagte.
+
+**Physik statt Handform.** Das symmetrische Band `1 − smoothstep(0, edge, abs(p.y − wave))`
+ist durch die **Chapman-Produktionsfunktion** ersetzt, `q(u) = exp(1 − u − e^(−u))`: nach unten
+mehr Atome (∝ e^(−u)), nach unten auch Strahlabsorption (∝ e^(−e^(−u))). Das Produkt IST die
+messerscharfe Unterkante und der diffuse Kopf — q(−3) ≈ 1e−7 gegen q(+3) ≈ 0,13. Dazu
+feldparallele Strahlen: senkrechte Streifung, weil das Licht B folgt; ihr Abstand trägt die
+Tonhöhe (**benannte Wahl, keine Ableitung** — eine Oktave höher verdoppelt die Strahlenzahl).
+
+**Die Blitz-Zahl ist UNVERÄNDERT, und das ist eine Behauptung, kein Versehen.** Aurora ist die
+Worst-Case-Zeile der App (exakt 3,00 Hz, null Reserve). Die Faltung ist der **Durchzug**, nicht
+das `abs()`: `wave` schwingt mit 0,35·phase, der Vorhangsgipfel läuft pro Zyklus zweimal über
+ein Pixel — egal welches Profil. Die alte Herleitung nannte `abs()` als Ursache und hätte den
+Umbau nur zufällig überlebt; sie ist korrigiert, die Zahl nicht.
+
+**Ein Fehler der ersten Fassung, von der Simulation gefangen:** H = 0,42 macht die sichtbare
+Vorhanghöhe ~4H = 1,7 von 2,0 Frame-Einheiten — mittlere Helligkeit **1,52×** der
+ausgelieferten. Genau die #1117-Falle, nur andersherum (dort dunkler). Gegen den Ist-Zustand
+gefegt: `mix(0.30, 0.14)` hält 1,19/1,10/0,93× über den Kohärenzbereich.
+
+**Bewusst NICHT hier:** `breathe` bleibt uhr-getrieben. Es der echten Atem-Größe zu geben
+löscht den 0,50-Seitenzweig und senkt die Zeile auf 0,70 (1,75 Hz) — aber **acht Dateien**
+zitieren die 3,00 Hz. Das ist eine eigene Scheibe mit ihrer Prosa-Kaskade (#456).
+
+Wächter `TheAuroraIsAChapmanProfileTests`, vier Ansprüche, transkribiert GRÜN.
+NEEDS-FOUNDER-VERIFY: Aurora wählen und eine steigende Linie spielen — die senkrechten
+Strahlen sollen sich mit der Tonhöhe sichtbar vermehren, die Unterkante deutlich schärfer
+bleiben als der Kopf.

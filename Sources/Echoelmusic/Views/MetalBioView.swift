@@ -1898,20 +1898,93 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
         float shimmer = 0.5 + 0.5 * sin(p.x * 6.0 + phase * 0.6) * cos(p.y * 5.0 - phase * 0.4);
         return clamp(mix(0.80, 0.94, coh) + 0.10 * shimmer, 0.0, 1.0);
     }
-    // STYLE 5 — AURORA: soft vertical curtains that wave horizontally and breathe,
-    // like northern lights — for ambient/installation looks. Two offset bands drift on
-    // the slow flash-safe phase; coherence tightens the curtain edge (ordered vs diffuse).
-    // Colour comes from the tone (physical-colour default), so a low tone reads warm, a
-    // high tone cool — a real pitch→hue aurora. Pure sin (no loop), compile-safe.
-    float fieldAurora(float2 p, float phase, float coh, float breath) {
-        float t = phase * 0.35;                                   // slow drift
+    // STYLE 5 — AURORA: a precipitation curtain with the altitude profile a real electron
+    // beam makes in an exponential atmosphere, striated by field-aligned rays.
+    //
+    // ⭐ WHAT #1125 CHANGED, AND THE THREE THINGS THAT WERE MEASURABLY WRONG.
+    //  (1) THE SOUNDING PITCH NEVER REACHED THIS LOOK. `toneHz` was not even a parameter,
+    //      while Aurora sits in `LookBlendMap.defaultSequence` — every user sees it. That is
+    //      the same defect Slice 1 removed from `fieldWater` and #1117 from
+    //      `fieldDepthCaustics`, and it had survived longest here.
+    //  (2) THE HEADER CLAIMED A COLOUR LAW THIS FUNCTION CANNOT REACH. It said "Colour comes
+    //      from the tone … a real pitch→hue aurora". `styleField` returns a SCALAR field;
+    //      colour is decided a hundred lines later in `toneCloudColour`. The claim was true
+    //      of the app and false of the function, so it read as evidence that pitch was
+    //      already wired here — the sentence that hid defect (1).
+    //  (3) THE PROFILE WAS SYMMETRIC. `1 − smoothstep(0, edge, abs(p.y − wave))` fades the
+    //      same amount upward and downward. A real curtain is the opposite of symmetric,
+    //      and that asymmetry is its single most recognisable feature.
+    //
+    // THE PHYSICS — CHAPMAN (1931), the production function every auroral-altitude text
+    // opens with. Electrons precipitate ALONG the geomagnetic field into an atmosphere
+    // whose density rises exponentially downward, and two opposing terms decide where the
+    // light appears. Going DOWN there are exponentially more atoms to excite (∝ e^(−u),
+    // with u the height in scale heights); going down the beam is also absorbed, and the
+    // surviving flux falls as a DOUBLE exponential (∝ e^(−e^(−u))), which collapses almost
+    // at once. Their product, normalised to a unit peak for an overhead beam, is
+    //
+    //     q(u) = exp(1 − u − e^(−u)).
+    //
+    // That ONE expression is both the knife-sharp lower border and the diffuse top:
+    // q(−3) ≈ 1e−7 against q(+3) ≈ 0.13. Nothing here is drawn or hand-shaped — the
+    // silhouette falls out of the two exponentials, which is the whole point.
+    //
+    // RAYS ARE FIELD-ALIGNED, WHICH IS WHY THE STRIATION RUNS UP THE PICTURE AND NEVER
+    // ACROSS IT. The light traces B, so the fine structure is vertical by construction.
+    // ⚠️ THE RAY SPACING IS A NAMED CHOICE, NOT A DERIVATION — said plainly rather than
+    // dressed up, because this file's whole credibility is that the derived parts are
+    // marked as derived. The perpendicular scale of a precipitation structure is a genuine
+    // free parameter of the display; no law ties it to a musical pitch. It is bound so that
+    // ONE OCTAVE UP DOUBLES THE RAY COUNT — the mapping a listener can actually read — off
+    // the same 261.63 Hz reference `fieldWater` uses, and clamped so neither a sub-bass nor
+    // a cymbal can turn the curtain into a flat wash or into aliasing hash.
+    //
+    // FLASH BUDGET — THE ROW'S NUMBER IS UNCHANGED AND THAT IS A CLAIM, NOT AN OVERSIGHT.
+    // Aurora is the worst-case row in the app (exactly 3.00 Hz, zero margin), so a rewrite
+    // here has to be re-derived rather than assumed neutral. The fold is the SWEEP, not the
+    // `abs()`: `wave` oscillates at 0.35·phase, so a pixel inside its travel sees the
+    // curtain's peak pass TWICE per cycle. `q` is single-peaked in exactly the way
+    // `1 − smoothstep(0, e, abs(·))` was, so the COUNT is identical — only each flash's
+    // SHAPE changes, which the budget does not measure. `rays` and `H` multiply SPATIAL
+    // coordinates and carry no phase, exactly as `fieldWater`'s `s` does. `breathe` is
+    // untouched here on purpose: giving the swell to the real breath signal deletes a
+    // phase-bearing factor and LOWERS the row, so it belongs in its own commit with the
+    // eight prose homes that quote the old number.
+    //
+    // COST, HONESTLY: two `exp` and one `cos` replace two `smoothstep` and two `abs`. That
+    // is slightly more expensive, not less — worth saying, since the neighbouring look was
+    // able to claim a saving and this one cannot.
+    float auroraChapman(float u) {
+        // Unit-peak Chapman production profile. Both clamps are NUMERIC, not aesthetic:
+        // e^(−u) overflows a 32-bit float near u = −88, and the outer argument can only
+        // ever be ≤ 0 (the peak is exactly 1 at u = 0), so flooring it at −30 costs
+        // nothing that is visible at 8 bits per channel and keeps every exponential in range.
+        float e = exp(-clamp(u, -6.0, 40.0));
+        return exp(clamp(1.0 - u - e, -30.0, 0.0));
+    }
+    float fieldAurora(float2 p, float toneHz, float phase, float coh, float breath) {
+        float t = phase * 0.35;                                   // slow drift — the ONE phase term
         float wave = sin(p.x * 2.2 + t) * 0.35 + sin(p.x * 4.7 - t * 0.6) * 0.15;
-        float edge = mix(0.55, 0.30, coh);                        // coherence sharpens
-        float curtain = 1.0 - smoothstep(0.0, edge, abs(p.y - wave));
+        // Coherence chooses the displayed scale height: a calm body shows a thinner, better
+        // defined curtain. Named choice — the same role the old `edge` played, in the unit
+        // the physics actually has. +pf.y is UP (the vertex stage sets uv = clip position),
+        // so `q`'s sharp side lands at the BOTTOM of the frame, where a real one is.
+        // ⚠️ THE RANGE IS MEASURED, NOT CHOSEN BY EYE. `q` decays UPWARD as a single
+        // exponential, so the curtain's visible height is ~4H — at the first draft's
+        // H = 0.42 that is 1.7 of the frame's 2.0 units, i.e. a lit sky, and the mean
+        // frame luminance came out 1.52× the band this replaces. A physics rewrite that
+        // silently rebalances the picture is the #1117 failure mode (there it darkened).
+        // Swept against the shipped look: mix(0.30, 0.14) holds the mean at 1.19/1.10/0.93×
+        // across low/mid/high coherence — the same weight, a different shape.
+        float H = mix(0.30, 0.14, clamp(coh, 0.0, 1.0));
+        float curtain = auroraChapman((p.y - wave) / H);
         float wave2 = sin(p.x * 3.1 - t * 0.8) * 0.30;
-        float curtain2 = 1.0 - smoothstep(0.0, 0.45, abs(p.y + 0.4 - wave2));
+        float curtain2 = auroraChapman((p.y + 0.4 - wave2) / (H * 1.35));
+        // Field-aligned rays: vertical striations whose spacing carries the sounding pitch.
+        float rays = clamp(3.0 * max(toneHz, 20.0) / 261.63, 2.0, 14.0);
+        float ray = 0.72 + 0.28 * cos(p.x * rays * 6.2831853);
         float breathe = 0.8 + 0.2 * sin(phase * 0.5);             // gentle
-        return clamp((curtain + curtain2 * 0.6) * breathe, 0.0, 1.0);
+        return clamp((curtain + curtain2 * 0.6) * ray * breathe, 0.0, 1.0);
     }
     // STYLE 6 — LISSAJOUS: woven nodal figures from two tone-derived axis frequencies
     // (a harmonograph weave). The x/y integer ratios come from the sounding TONE via
@@ -2070,7 +2143,7 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
         else if (si < 2.5)  field = fieldDish(pf, u_dishK, u_dishStrength, u_dishHex, phase, coh);
         else if (si < 3.5)  field = fieldWater(pf, toneHz, phase, coh, breath);
         else if (si < 4.5)  field = fieldPrism(pf, phase, coh);
-        else if (si < 5.5)  field = fieldAurora(pf, phase, coh, breath);
+        else if (si < 5.5)  field = fieldAurora(pf, toneHz, phase, coh, breath);
         else if (si < 6.5)  field = fieldLissajous(pf, toneHz, phase, coh);
         else if (si < 7.5)  field = fieldDepthCaustics(pf, phase, coh, breath, u_dishK, u_dishStrength);
         else if (si < 8.5)  field = fieldScope(pf, toneHz, phase, coh);

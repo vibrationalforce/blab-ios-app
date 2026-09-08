@@ -312,11 +312,22 @@ public enum FlashGuard {
         // law and moved breath onto the sum's AMPLITUDE; neither touches a phase-bearing term
         // (`s` multiplies the SPATIAL coordinate), so this row is unchanged BY STRUCTURE.
         .init(styleIndex: 3, name: "Water", phaseMultiplier: 0.68, folds: false),
-        // fieldAurora: abs(p.y − wave) FOLDS a wave whose fastest term is 1.0·t = 0.35·phase
-        // ⇒ 0.70. The curtain is then MULTIPLIED by `breathe` (0.5·phase), adding a
-        // 0.70 + 0.50 = 1.20 sideband ⇒ 3.00 Hz. ⚠️ AURORA SITS EXACTLY ON THE LIMIT WITH ZERO
-        // MARGIN — the worst-case row in the app, and it is in `LookBlendMap.defaultSequence`.
-        // Do not add any further phase term to it.
+        // fieldAurora: the drift `wave` sweeps past a pixel TWICE per cycle of its fastest
+        // term (1.0·t = 0.35·phase) ⇒ 0.70. The curtain is then MULTIPLIED by `breathe`
+        // (0.5·phase), adding a 0.70 + 0.50 = 1.20 sideband ⇒ 3.00 Hz.
+        // ⛔ #1125 — THIS DERIVATION USED TO SAY "abs(p.y − wave) FOLDS", AND THAT NAMED THE
+        // WRONG CAUSE. The doubling is the SWEEP: the curtain's peak crosses a fixed pixel
+        // on the way out and again on the way back, whatever the profile's shape. #1125
+        // replaced the symmetric `abs()` band with the asymmetric Chapman profile a real
+        // electron beam makes, and the count did not move — which is precisely what a
+        // sweep-based derivation predicts and an `abs()`-based one does not. A row whose
+        // stated cause is wrong survives a rewrite by luck, so the cause is corrected here
+        // even though the NUMBER is untouched.
+        // ⚠️ AURORA SITS EXACTLY ON THE LIMIT WITH ZERO MARGIN — the worst-case row in the
+        // app, and it is in `LookBlendMap.defaultSequence`. Do not add any further phase
+        // term to it. (The one change that would LOWER it is giving `breathe` to the real
+        // breath signal instead of the clock; that deletes the 0.50 outright and is held
+        // back to its own commit, because eight files quote the 3.00 Hz it would falsify.)
         .init(styleIndex: 5, name: "Aurora", phaseMultiplier: 1.20, folds: false),
         // fieldDepthCaustics (#1117 rebuilt it as a real ray map): the only phase-bearing term
         // is `breathe = 0.85 + 0.15·sin(0.30·phase)`, entering the focus number φ. Unlike the
