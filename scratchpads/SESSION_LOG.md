@@ -26826,3 +26826,34 @@ one. The ADM fixtures use `.cameraPPG` and `.fallback`, both waveform-bearing, s
 Guard `TheBreathRateAndItsWaveformAreTwoGatesTests`: 4 claims, 9 checks, driven in Python,
 ALL PASS. It forbids nothing (#364) — giving HealthKit a real waveform reddens claim 3 on
 purpose, and the message names the four prose homes to pull in the same commit.
+
+## #1141 — the launch look-snap was skipped in donut mode, and the beamer does not know about donut mode (2026-09-08)
+
+The snap that rewrites a persisted `visual.style` no longer in `LookBlendMap.library` carried
+`!spectralDonuts,` on BOTH branches. It sits directly under the #747 repair and reads as part
+of it — **and it is not**. #747 was about never stamping `visual.spectralDonuts` back to
+`false` and eating a player's choice. This snap writes `visual.style`, a **different key**.
+
+**Measured, and it is a safety defect rather than untidiness:** `ExternalDisplayScene` reads
+`visualStyle`/`visualStyleB` straight from `@AppStorage` and mentions `spectralDonuts`
+**zero** times. So a player in donut mode sees rings on the phone while the **beamer renders
+the retired look underneath** — and `FlashGuard` cannot damp it. A style with no row is
+treated as `maxFlashHz` (3.0, "UNKNOWN not FREE"), so `blendPhaseDamping` finds
+`union == maxFlashHz` rather than greater and returns exactly **1.0**. Scope really runs at
+**3.90 Hz** (#1130), over the 3 Hz WCAG ceiling, on the largest display in the room.
+
+The guard is not wrong — it cannot know a rate for a look that has no row. That is precisely
+why an unselectable index must not survive launch.
+
+**Fix:** drop `!spectralDonuts,` from both branches. Nothing a donut-mode player can SEE
+changes: the flag is untouched, the phone still draws rings, and the value snapped to is a
+selectable look.
+
+⚠️ **The reachability chain is complete, not hypothetical:** the donut toggle is live in the
+Field panel (#1065, one reachable control), and a retired index can only be in the store from
+an older build — which is exactly the case this migration exists for.
+
+Guard `TheBeamerCannotShowARetiredLookTests`: 4 claims, 10 checks, driven in Python, ALL PASS.
+Claim 2 re-derives the damping arithmetic so "it was a safety defect" is checkable rather than
+asserted. Claim 4 is the counterweight — it forbids resurrecting `normaliseUnreachableDonutMode`
+and requires the donut toggle to stay reachable, so this header cannot overstate a dead risk.

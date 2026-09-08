@@ -1353,11 +1353,32 @@ struct EchoelStudioView: View {
             // control reads blank, and the two disagree — which is the one thing #736's
             // one-owner design exists to prevent.
             normaliseUnparseableMasterCharacter()
-            if !spectralDonuts, !sliderLooks.contains(visualStyle) {
+            // ⛔ #1141 — BOTH BRANCHES CARRIED `!spectralDonuts,` AND THAT GATE WAS A FLASH-SAFETY
+            // HOLE ON THE BIGGEST SURFACE IN THE ROOM. It reads as if it belongs to the #747
+            // repair above, and it does not: that one was about not stamping
+            // `visual.spectralDonuts` back to `false` and eating a player's choice. This snap
+            // writes `visual.style`, a DIFFERENT key. Skipping it in donut mode preserved
+            // nothing the player chose and left a retired style index sitting in the store.
+            //
+            // What that costs, measured: `ExternalDisplayScene` reads `visualStyle`/`visualStyleB`
+            // straight from `@AppStorage` (its lines 155/156) and never mentions donut mode —
+            // `git grep -c spectralDonuts` on that file is **0**. So a player in donut mode sees
+            // rings on the phone while the BEAMER renders the retired look underneath, and
+            // `FlashGuard` cannot damp it: a style with no row is treated as `maxFlashHz` (3.0),
+            // `blendPhaseDamping` finds `union == maxFlashHz` rather than greater, and returns
+            // exactly 1.0 — no damping. Scope actually runs at **3.90 Hz** (#1130), over the
+            // 3 Hz WCAG ceiling, on the largest display present. The guard is not wrong; it
+            // cannot know a rate for a look that has no row, which is precisely why an
+            // unselectable index must not survive launch.
+            //
+            // ⚠️ Nothing a donut-mode player can SEE changes: their `spectralDonuts` flag is
+            // untouched, the phone still draws rings, and the value snapped to is a selectable
+            // look. This only stops an index they cannot choose from reaching a second screen.
+            if !sliderLooks.contains(visualStyle) {
                 visualStyle = sliderLooks.first ?? 3   // → first look (default Water)
                 visualStyleB = 0
                 visualBlend = 0
-            } else if !spectralDonuts, visualBlend > 0, !sliderLooks.contains(visualStyleB) {
+            } else if visualBlend > 0, !sliderLooks.contains(visualStyleB) {
                 visualStyleB = 0
                 visualBlend = 0
             }
