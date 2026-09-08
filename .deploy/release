@@ -1,4 +1,4 @@
-build: v10.79.460 — die Visuals folgen jetzt überall dem Klang: Aurora atmet, Rings misst die Wellenlänge, das Tiefen-Licht ist echte Strahlenoptik
+build: v10.79.461 — mit Brustgurt stand Dein Bild dauerhaft auf „voll ausgeatmet"; jetzt ruht es in der Mitte
 branch: claude/echoelmusic-neustart-auv3-6ri2ek (tokenless deploy via .deploy/release bump)
 notes: |
   ⚠ AN DIE NÄCHSTE SESSION: die Versionsnummer in Zeile 1 MUSS die erste im ganzen File
@@ -6,7 +6,89 @@ notes: |
   nimmt den ersten Treffer. Deshalb steht der Vorgänger unten ohne `v`.
   Wächter im blockierenden Bundle: `TheShippedVersionComesFromTheReleaseFileTests` (#635).
 
-  Der Vorgänger ist 10.79.459.
+  Der Vorgänger ist 10.79.460.
+
+  ── EIN EINZIGER ECHTER FEHLER, UND ER IST GRÖSSER ALS ER KLINGT ─────────
+
+  **Das Bild liest Deinen Atem — hat aber nie geprüft, ob überhaupt einer gemessen wurde.**
+
+  Im Code heißt der Wert „0" nicht *unbekannt*, sondern **„voll ausgeatmet"**. Und drei
+  Wege liefern genau diese 0:
+
+  · **Der Brustgurt** misst gar keinen Atem (er misst den Puls) → schreibt 0.
+  · **Die Gesichtskamera** ebenso → schreibt 0.
+  · **Die Fingerkamera**, während sie den Puls hält, ebenfalls.
+
+  Folge: mit Gurt lief das Bild **dauerhaft so schmal und so dunkel wie es überhaupt sein
+  kann** — als würdest Du nie einatmen. Auf dem Schirm war das nicht zu erkennen, weil ein
+  ruhiger Ausatem-Zustand genauso aussieht.
+
+  Jetzt fragt das Bild zuerst: *ist ein Atem gemessen?* Wenn nein, ruht es in der **Mitte**
+  statt am Rand.
+
+  ⚠️ **Was ich dabei fast falsch gemacht hätte, weil es so naheliegend aussah:** es gibt
+  schon einen fertigen „geprüften Atemwert" für den KLANG. Den hier einzusetzen hätte ein
+  Extrem gegen das andere getauscht — durch die Formkurve des Bildes wird sein Neutralwert
+  zum *weitesten und hellsten* Zustand. Gerechnet:
+
+  | | Bildbreite |
+  |---|---|
+  | vorher (kaputt) | 0,85 — das schmalste |
+  | „naheliegende Lösung" | 1,20 — das weiteste |
+  | **jetzt** | **1,025** — Dein Regler-Neutralwert ist 1,0 |
+
+  **Zu prüfen (nur mit Gurt, 20 Sekunden):** Gurt verbinden, Bild ansehen. Wirkt es weiter
+  und ruhiger als vorher — und nicht mehr eingeschnürt? Mit der Fingerkamera und erkanntem
+  Atem darf sich **nichts** geändert haben.
+
+  ── EINE PRÄZISIERUNG ZU DEM, WAS ICH DIR ZU 460 GESCHRIEBEN HABE ────────
+
+  Ich hatte über Aurora gesagt: *„der Vorhang soll mit Deinem Atem kommen und gehen."*
+  **Das stimmt. Aber er schwillt NICHT beim Einatmen** — und das hätte man aus meinem Satz
+  lesen können.
+
+  Der Grund: die Fingerkamera liefert keine Atem-*Phase* (wo im Atemzug Du bist), sondern
+  eine Atem-*Hüllkurve* (wie tief die Schwingung gerade ist). Durch die Formkurve heißt das:
+
+  · am hellsten **in der Mitte** des Atemzugs
+  · am dunkelsten, **wenn die Lunge voll ist** — und ebenso, wenn sie leer ist
+  · also **doppelt so schnell** wie Du atmest
+
+  ⛔ **Das habe ich bewusst NICHT mitrepariert.** Es ist kein Versehen im Code, sondern ein
+  Widerspruch im Vertrag zwischen Kamera und Bild, den der Quelltext seit Längerem selbst
+  benennt. Ihn aufzulösen heißt entweder, die Kamera eine echte Phase liefern zu lassen
+  (sauberer, aber sie berührt vier Verbraucher), oder den Vertrag umzuschreiben (kleiner,
+  aber alle vier müssen mit). Halb geht nicht. Steht als eigene Aufgabe.
+
+  ⚠️ **Blitz-Sicherheit unberührt.** Der Atem sitzt auf der HELLIGKEIT, nicht auf dem Takt —
+  Auroras Zeile bleibt bei 1,75 Hz, Rings bleibt der engste Look mit 2,50 Hz.
+
+  ── WAS ICH IN DIESER RUNDE SONST NOCH GEFUNDEN HABE (kein Bildeffekt) ───
+
+  · **Von fünf stillgelegten Looks ist einer über der Epilepsie-Grenze.** Nachgerechnet:
+    Cymatics 1,25 · Prism 2,50 · Lissajous 2,50 sind harmlos, **Scope läge bei 3,90 Hz**
+    (Grenze 3,0). Keiner ist heute wählbar — aber im Code stand, ein Look sei „durch
+    Wiedereinfügen einer Zeile" zurückzuholen, und für Scope ist das falsch: der Shader muss
+    vorher beruhigt werden. Jetzt steht die Bedingung dort.
+  · **Vier Kanäle rechneten jede Sekunde etwas aus, das niemand liest.** Darunter der
+    EINZIGE Weg, auf dem Deine HRV das Bild erreichen könnte. Drei davon behaupteten in
+    ihrer Beschreibung weiter, sie seien lebendig. Jetzt sagen sie die Wahrheit.
+  · **Eine geplante Neuerung habe ich beim Nachmessen verworfen:** der Bild-Herzschlag
+    sollte mit Deinem Atem schwingen (das ist echte Physiologie). Der Weg dorthin glättet
+    aber über 3 Sekunden — der Effekt käme **halbiert und 1,7 s zu spät**, also sichtbar als
+    „schneller beim Ausatmen". Nicht gebaut, mit Messung und dem tragfähigen Weg daneben
+    aufgeschrieben.
+
+  ── OFFEN AUS 460, FALLS DU GERADE DABEI BIST ────────────────────────────
+
+  Sechs Bild-Punkte warten noch auf Dein Auge — Aurora (Atem + Strahlen), Rings
+  (Ringabstand bei steigendem Ton), Tiefen-Licht (Schwimmbadboden), Look-Regler-Mischung,
+  „Reduzierte Bewegung" auf dem Beamer und der Dish aus 459. Die Prüfschritte stehen
+  unverändert in der 460er-Notiz weiter unten.
+
+  ⚠️ **Geräteverifiziert ist auch hier nichts.** Beide Gates sind grün (der Compile-Check und
+  die Testbau-Stufe), die Rechnung ist von Hand gegengeprüft — ob es sich RICHTIG anfühlt,
+  weiß nur Dein Gerät.
 
   ── WAS DU IN DIESEM BUILD SIEHST ────────────────────────────────────────
 
