@@ -1,6 +1,129 @@
-build: v10.79.459 — wie 458, PLUS: der neue Look „Dish" — eine echte Wasserschale auf dem Lautsprecher
+build: v10.79.460 — die Visuals folgen jetzt überall dem Klang: Aurora atmet, Rings misst die Wellenlänge, das Tiefen-Licht ist echte Strahlenoptik
 branch: claude/echoelmusic-neustart-auv3-6ri2ek (tokenless deploy via .deploy/release bump)
 notes: |
+  ⚠ AN DIE NÄCHSTE SESSION: die Versionsnummer in Zeile 1 MUSS die erste im ganzen File
+  sein. CI greift mit `grep -m1 -oE 'v[0-9]+\.[0-9]+\.[0-9]+'` über die GESAMTE Datei und
+  nimmt den ersten Treffer. Deshalb steht der Vorgänger unten ohne `v`.
+  Wächter im blockierenden Bundle: `TheShippedVersionComesFromTheReleaseFileTests` (#635).
+
+  Der Vorgänger ist 10.79.459.
+
+  ── WAS DU IN DIESEM BUILD SIEHST ────────────────────────────────────────
+
+  Kurz: **jeder der fünf wählbaren Looks folgt jetzt dem klingenden Ton.** Vorher taten das
+  nur zwei. Dazu atmet einer wirklich mit Dir, und eines der Bilder ist von einer
+  Helligkeitskurve zu echter Strahlenoptik geworden.
+
+  **1 · AURORA — atmet mit Dir, und die Unterkante ist scharf**
+
+  Zwei Dinge waren falsch, beide unsichtbar:
+  · Der Ton erreichte diesen Look **überhaupt nicht**. Jetzt tragen die senkrechten Strahlen
+    die Tonhöhe: **eine Oktave höher = doppelt so viele Strahlen.**
+  · Das „Atmen" kam von einer **Uhr**, nicht von Dir. Dein Atemwert wurde übergeben und nie
+    gelesen. Jetzt schwillt der Vorhang mit Deinem echten Atem an und ab.
+
+  Und die Form stimmt jetzt: ein echtes Polarlicht hat eine **messerscharfe Unterkante** und
+  einen **weichen Kopf**, weil der Elektronenstrahl nach unten schlagartig aufgebraucht ist.
+  Vorher war der Vorhang oben und unten gleich weich — das ist das Einzige, was ein echtes
+  Polarlicht nie ist.
+
+  **Zu prüfen (30 Sekunden):** Aurora wählen. Ruhig atmen → der Vorhang soll mit *Deinem*
+  Atem kommen und gehen, nicht in eigenem Takt. Eine steigende Linie spielen → die
+  senkrechten Strahlen sollen sich sichtbar vermehren. Unterkante deutlich schärfer als oben?
+
+  **2 · RINGS — der Streifenabstand ist die Wellenlänge**
+
+  Rings war der **letzte** Look, den der Ton nicht erreichte. Ausgerechnet dort ist es am
+  zwingendsten: Rings ist Zweistrahl-Interferenz, und bei Interferenz **ist** der
+  Streifenabstand die Wellenlänge. Höherer Ton → engere Ringe.
+
+  ⚠️ **Dein Density-Regler bleibt Dein Regler.** Bei mittlerem C ist der Ton-Faktor exakt
+  1,0 — das Bild sieht dort aus wie immer. Zwei Oktaven nach oben und unten wirken, danach
+  sättigt es; das Ergebnis bleibt in dem Abstands-Bereich, den der Regler schon immer hatte.
+  Kein Ton kann daraus eine Fläche oder Flimmern machen.
+
+  **Zu prüfen:** Rings wählen, steigende Linie → Ringe werden enger. Bei mittlerem C: sieht
+  der Regler aus wie gewohnt?
+
+  **3 · TIEFEN-LICHT (Depth) — jetzt echte Strahlenoptik**
+
+  Das war eine steile Helligkeitskurve auf einer Sinus-Summe. Jetzt ist es das, was der Name
+  sagt: **das Licht, das eine gekräuselte Wasseroberfläche auf den Boden darunter wirft**,
+  in drei Tiefen gleichzeitig. Jede Wellenmulde ist eine Linse; hell ist dort, wo die
+  Strahlen sich kreuzen. Und dieselbe Schale wie beim „Dish"-Look treibt es — der Ton macht
+  das Netz feiner.
+
+  **Stille = gleichmäßig ausgeleuchteter Boden**, kein schwarzes Bild. Das ist die
+  physikalische Antwort, nicht eine Notlösung.
+
+  **Zu prüfen:** liest sich das wie Licht auf einem Schwimmbadboden? Und macht eine Oktave
+  höher das Netz sichtbar enger?
+
+  **4 · BEIM MISCHEN ZWEIER LOOKS BREMST DIE BEWEGUNG LEICHT**
+
+  Ein echter Sicherheitsfund: zieht man den Look-Regler zwischen zwei Bilder, sieht ein
+  Bildpunkt **beide** Muster gleichzeitig — die Blitzzahlen addieren sich. Water↔Aurora in
+  der Mitte lag bei 4,7 Hz, über der Epilepsie-Grenze von 3 Hz. **Ein ganz normaler Zug am
+  ausgelieferten Regler.**
+
+  Jetzt wird nur die Feld-Bewegung gebremst, und nur solange zwei Looks wirklich
+  nebeneinander stehen. **Der Herzschlag wird NIE gebremst** — er muss auf Deinem Puls
+  bleiben, sonst schlägt das Bild langsamer als Du.
+
+  **Zu prüfen:** Look-Regler von Water nach Aurora ziehen — in der Mitte soll die Bewegung
+  ein wenig ruhiger werden, an beiden Enden exakt wie vorher.
+
+  **5 · „REDUZIERTE BEWEGUNG" GILT JETZT AUCH AUF DEM BEAMER**
+
+  Auf dem Telefon wurde die Systemeinstellung respektiert, auf dem angeschlossenen Bildschirm
+  nicht. Wer sie wegen Schwindel oder Migräne einschaltet, bekam sie ausgerechnet auf der
+  großen Fläche nicht. Jetzt lesen beide dieselbe Einstellung.
+
+  ⚠️ **Eine Frage an Dich:** darf eine Performance mit „Reduzierte Bewegung" trotzdem
+  weiterlaufen? Heute steht das Bild still, wenn die Einstellung an ist. Sag „stehen" oder
+  „langsam", mehr brauche ich nicht.
+
+  ── SICHERHEIT: DIE APP HAT KEINEN LOOK MEHR AUF DER GRENZE ──────────────
+
+  Aurora saß auf **exakt 3,00 Hz** — der Epilepsie-Grenze, null Reserve. Weil das Atmen jetzt
+  von Dir kommt statt von einer Uhr, fällt ein ganzer Takt-Bestandteil weg: Aurora liegt bei
+  **1,75 Hz**. Engster Look ist jetzt Rings mit 2,50 Hz und 0,50 Hz Reserve.
+
+  ⚠️ Das heißt NICHT, dass die Grenze angehoben werden darf — bei 3,0 säße Rings genau auf
+  der Kante. Ich habe die Begründung im Code auf die schwächere, ehrliche Fassung korrigiert.
+
+  ── WAS ICH NICHT BEWEISEN KANN, UND DAS SAGE ICH LIEBER ─────────────────
+
+  Ich habe in dieser Runde entdeckt, dass der Wächter, der den Metal-Shader WIRKLICH
+  übersetzt, seit einer Weile rot war — und zwar aus einem Grund, der **nur den Test
+  betraf, nie die App**: der Test baut den Shader-Text von Hand nach und hatte zehn
+  Platzhalter nicht auf seiner Liste. Die App setzt dieselben Platzhalter automatisch ein.
+  Das ist repariert.
+
+  ⚠️ **Ob der Test seither wirklich gelaufen ist, sehe ich nicht.** Das CI-Log wird auf die
+  letzten 200 Zeilen gekürzt, und ein bekannter Infrastruktur-Fehler tötet pro Lauf einen
+  Simulator — der Test landet mal darauf, mal nicht. Zwei Läufe hintereinander melden null
+  Fehler, aber sein Name taucht nicht auf. **Ich behaupte ihn deshalb nicht als Absicherung.**
+
+  Was ich stattdessen von Hand gegen den Quelltext geprüft habe: Klammern und Blöcke
+  ausgeglichen (438/438, 38/38), 22 Funktionen und keine vor ihrer Definition gerufen, keine
+  Zahlen-Typen, die Metal nicht kennt, und **alle zehn Look-Aufrufe passen zu ihren
+  Deklarationen** (das ist der Fehler, den meine zwei Änderungen am ehesten hätten machen
+  können). Falls das Bild trotzdem leer bleibt: das ist die eine Stelle, an der ich falsch
+  liegen kann — sag es sofort, der Rückbau ist klein.
+
+  **Geräteverifiziert ist nichts davon.**
+
+  ── OFFEN VON FRÜHEREN BUILDS, FALLS DU GERADE DABEI BIST ────────────────
+
+  · **Dish (aus 459):** lauter Bass → grobes Gitter, zwei Oktaven höher → feiner, über
+    ~1,3 kHz glatter Spiegel; Stille → Spiegel. Kommt das Gitter zu selten oder zu leicht,
+    sag „öfter" oder „seltener".
+  · Die Website sagt weiter „four generative looks" — das wird erst „five", wenn Du den
+    Dish gesehen und angenommen hast.
+
+  Alles andere unten gilt unverändert für 459.
+
   ⚠ AN DIE NÄCHSTE SESSION: die Versionsnummer in Zeile 1 MUSS die erste im ganzen File
   sein. CI greift mit `grep -m1 -oE 'v[0-9]+\.[0-9]+\.[0-9]+'` über die GESAMTE Datei und
   nimmt den ersten Treffer. Deshalb steht der Vorgänger unten ohne `v`.
