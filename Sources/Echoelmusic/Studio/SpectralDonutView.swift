@@ -22,6 +22,19 @@ struct SpectralDonutView: View {
     @Environment(AudioEngine.self) private var audioEngine
     @Environment(EngineBus.self) private var bus
     var reduceMotion: Bool = false
+
+    /// Ring count, handed in by the mount rather than read from the quality governor.
+    ///
+    /// ⚠️ THAT IS DELIBERATE AND IT IS A RENDER-SAFETY DECISION, NOT AN OVERSIGHT (#1122).
+    /// `ResourceGovernor.settings.visualDetailScale` is the obvious source and `MetalBioView`
+    /// does use it — but it reads the governor inside `draw(in:)`, OFF the SwiftUI
+    /// observation graph, and says at its own `@Environment` property why. This view is a
+    /// `Canvas` inside a `TimelineView`: its draw closure IS on the graph, and it renders in
+    /// the floating window that sits above the studio's menus. Reading governor state here
+    /// is the 10.76.41/50 menu-freeze pattern — an open `.menu` Picker below torn down by an
+    /// ancestor rebuild. So the number arrives as a plain value the mount already has.
+    /// Wiring the governor to this look is a real slice with a real question (who reads it,
+    /// and from where), not a missing line.
     var bandCount: Int = 28
 
     /// Reference-type smoother held across frames (eased ring values + cached colours).

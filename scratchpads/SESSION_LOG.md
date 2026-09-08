@@ -26217,3 +26217,48 @@ Wächter-Kopf, weil die nächste Sitzung sonst dieselben zwei Stunden verliert:
 Der Wächter beweist gleiches Layout aus gleichen Namen — und deshalb ist Anspruch 2 (nichts
 außer `Float`) tragend, nicht dekorativ: ein einziges `Double` oder `simd_float3` würde genau
 dieses Argument brechen, und dann wird Anspruch 2 rot statt Anspruch 1 still grün.
+
+## #1122 — „Der Donut hat keine Tür" stand im Governor und war falsch (2026-09-08)
+
+`ResourceGovernor`s eigene Entwurfsnotiz sagte: „`allowSpectralDonuts` → nobody;
+`SpectralDonutView` has no reachable door." Gemessen (Kommentarzeilen abgezogen):
+**genau EINE** Montagestelle, `FloatingVisualWindow` — die Live-Visual-Fläche des Telefons.
+Der Donut war die ganze Zeit erreichbar. Die Notiz entstand, als #1069 die ZWEITE Tür (den
+Umschalter im Vollbild) löschte, und drehte die Tatsache dabei um.
+
+**Die Richtung macht es teuer:** „es gibt keine Tür" sagt der nächsten Sitzung, der
+Qualitäts-Hebel sei GEGENSTANDSLOS — also schaut niemand mehr hin. Derselbe Satz war schon in
+CLAUDE.mds Register gewandert (mit #1121 im Commit davor korrigiert). Zwei Dateien, eine
+falsche Tatsache, und keine konnte der anderen widersprechen.
+
+**Der ECHTE Grund ist ein besserer und steht jetzt an beiden Enden:** der Donut ist ein
+SwiftUI-`Canvas` in einer `TimelineView`, seine Zeichen-Closure liegt also AUF dem
+Observations-Graphen — in dem Fenster, das über den Menüs des Studios sitzt. Governor-Zustand
+dort zu lesen ist das 10.76.41/50-Menü-Freeze-Muster. `MetalBioView` kommt damit durch, weil es
+`governor.settings` in `draw(in:)` liest, NEBEN dem Graphen; ein `Canvas` hat dafür kein
+Gegenstück. Deshalb bekommt der Donut `bandCount` als schlichten Parameter. Den Hebel zu
+verdrahten ist eine echte Scheibe mit einer echten Entwurfsfrage, kein vergessener Einzeiler.
+
+⛔ **ZWEI WEITERE SELBST-FALSIFIKATIONEN in EINEM Wächter, beide von der Transkription
+gefangen — heute die dritte und vierte dieser Art:**
+1. Anspruch 1 zählte per `text.contains` **FÜNF** Montagestellen. Vier davon sind PROSA, die
+   den Konstruktor zitiert (`LookBlendMap`, `EchoelStudioView` ×2, `VisualEnergy`,
+   `ResourceGovernor`) — darunter die Notiz, die dieselbe Scheibe gerade geschrieben hatte.
+   Kommentarzeilen werden jetzt abgezogen.
+2. Anspruch 2 verbot zuerst die WÖRTER „ResourceGovernor" und „visualDetailScale" — und wurde
+   sofort rot, weil der neue `bandCount`-Vermerk sie NENNEN muss, um ihre Abwesenheit zu
+   erklären. Ein Wächter, über dessen Gegenstand man nicht schreiben darf, ist unbrauchbar.
+   Verboten ist jetzt die INJEKTION und der LESEVORGANG (`@Environment(ResourceGovernor.self)`,
+   `governor.settings`) — also das, was den Governor wirklich auf den Graphen bringt.
+
+**Gesetz aus vier Fällen an einem Tag: eine Nadel, die ein Wort sucht, trifft irgendwann die
+Prosa über das Wort. Nadeln müssen CODE-förmig sein, nicht begriffs-förmig.**
+
+⭐ **Zwei Audit-Befunde dabei WIDERLEGT, nicht gebaut:** der „tote Prism-Farbpfad" ist nicht tot
+(`prismColour` wird bei `prismW > 0` gerufen; die Retirement-Behandlung steht ausführlich in
+`LookBlendMap`), und „Intensity 0 rendert schwarz und die App startet kalt hinein" ist zur
+Hälfte falsch — der Default ist **1.0**, ein Neu-Installation startet nie schwarz. Ein
+VJ-Blackout ist außerdem gewollt (Aesthetic-Maximalist-Sitz), also keine stille Änderung.
+Ebenso der 60-fps-Pin: `ResourceGovernor` nennt seinen Grund (ein Neusetzen von
+`preferredFramesPerSecond` konfiguriert die CADisplayLink um, sichtbarer Kadenz-Ruckler) und
+der Grund hält.

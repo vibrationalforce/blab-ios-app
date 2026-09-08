@@ -34,7 +34,24 @@
 //      throttling them is therefore fade SMOOTHNESS (visible banding on a slow fade),
 //      not fade length — still show-visible, still the founder's call, but a different
 //      trade-off than the one written here for a month.
-//    · `allowSpectralDonuts` → nobody; `SpectralDonutView` has no reachable door.
+//    · `allowSpectralDonuts` → nobody. ⛔ THE REASON GIVEN HERE WAS FALSE (#1122): it said
+//      "`SpectralDonutView` has no reachable door". Measured — `git grep -n
+//      "SpectralDonutView(" -- Sources` returns exactly ONE mount, in
+//      `FloatingVisualWindow`, which is the phone's live visual surface. The donut has been
+//      reachable the whole time; what #1069 deleted was the SECOND door (the fullscreen
+//      cover's toggle), and the note here was written against that deletion and inverted.
+//      This mattered: a premise of "there is no door" tells the next session the lever is
+//      MOOT, when it is in fact an open choice.
+//      THE REAL REASON, and it is a harder one. The donut is a SwiftUI `Canvas` inside a
+//      `TimelineView`, and this repo's render-safety law forbids reading a hot `@Observable`
+//      in a SwiftUI body — `MetalBioView` says so at its own governor property and reads
+//      `governor.settings` inside `draw(in:)`, off the SwiftUI graph. A `Canvas` has no
+//      equivalent off-graph hook, so wiring either `allowSpectralDonuts` or
+//      `visualDetailScale` here means reading governor state on the observation graph in the
+//      window that sits above the studio's menus: the 10.76.41/50 menu-freeze class. The
+//      donut takes `bandCount` as a plain parameter for exactly this reason. Wiring it is a
+//      real slice with a real design question (who reads the governor, and where), not the
+//      one-liner "no consumer" makes it sound like.
 //
 //  @MainActor @Observable: it is pure control-plane state read by SwiftUI. It never
 //  touches the audio thread. Updates are event-driven (thermal/power notifications)
