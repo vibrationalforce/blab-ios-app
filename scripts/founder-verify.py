@@ -100,18 +100,49 @@ ROOTS = ["Sources", "Tests", "CLAUDE.md"]
 # needle wins, so `visual` is matched first. "Field" is deliberately NOT a visual needle
 # even though the Field panel is the visual one — `BodyTempoField` would have been swept
 # in, and a tempo control is not a picture.
+#
+# ⭐ #1149 WIDENED THE TABLE BECAUSE "other" HAD GROWN BACK TO 43 OF 110 — 39 %, which is
+# the same "not a classification, it is a list" the paragraph above measured at 60 %. The
+# cause is not a regression in the rule; it is that the visual/flash/colour work of the
+# last weeks minted a whole vocabulary the table predates (Aurora, Caustics, Dish,
+# Wavefront, Shader, Hue, Flash, Blend, Still).
+#
+# ⭐ WHY WIDENING IS SAFE IN A WAY THE OTHER RULES IN THIS FILE ARE NOT. An area label can
+# only move an ask from "other" into a named bucket. It can never HIDE one — that is what
+# `is_reference` does, and why that rule is measured so much harder. The only real hazard
+# is the ORDER tie-break above: a needle added to an EARLIER area can steal an ask that a
+# LATER one classifies correctly today.
+#
+# ⛔ TWO CANDIDATES WERE MEASURED AND KILLED FOR EXACTLY THAT. "Input" for audio would
+# have stolen `TheMPEInputHasNoZonesTests` from `sync` (audio is matched first) — the
+# needle is `InputEdge`. "Key" for the musical key would have stolen
+# `TheKeypadCannotTypeWhatItCannotKeepTests` from `ui` — the needle is `Flat`. Both were
+# found by diffing every ask's bucket before and after, not by reading the list.
+#
+# ⛔ A THIRD WAS KILLED BY THAT DIFF AFTER IT WAS ALREADY WRITTEN, which is the whole
+# argument for running it. "Still" (for the still-image asks) matched inside
+# `TheMonoVoiceKeepsTheKeyStillDownTests` and moved it AUDIO → VISUAL — a needle that is a
+# whole word in one name and a syllable in another. The obvious repairs were both worse:
+# a file-specific needle (`StillIsOne`) is brittle by construction, and "Frame" would have
+# stolen `TheLockNeedsFramesTests` from `bio`. So the needle is simply GONE and its two
+# asks stay in "other". A bucket that is honestly empty of a topic beats one that is
+# quietly wrong about a neighbour.
 AREAS = [
     ("visual", ("/Video/", "/Views/", "Visual", "Metal", "Look", "Recording", "Clip",
-                "Donut")),
+                "Donut", "Colour", "Shader", "Aurora", "Rings", "Caustic", "Dish",
+                "Wavefront", "Hue", "Flash", "Blend", "Filmic")),
     ("bio", ("/Bio/", "Bio", "Pulse", "Coherence", "Breath", "Heart", "Camera", "RPPG",
-             "Confidence", "Lock")),
-    ("audio", ("/Audio/", "/DSP/", "/Tools/", "FX", "Grain", "Chain", "Tempo", "Genre",
-               "Sound", "Patch", "Voice", "Autotune", "Reverb", "Mix", "Take", "Loop",
-               "Monitor", "Tune", "Detune", "Instrument")),
-    ("sync", ("/Sync/", "/Stream/", "OSC", "MIDI", "Peer", "Wire", "ArtNet", "Lux")),
+             "Confidence", "Lock", "Stall")),
+    ("audio", ("/Audio/", "/DSP/", "/Tools/", "/Sequencer/", "FX", "Grain", "Chain",
+               "Tempo", "Genre", "Sound", "Patch", "Voice", "Autotune", "Reverb", "Mix",
+               "Take", "Loop", "Monitor", "Tune", "Detune", "Instrument", "Howl",
+               "Harmoni", "Mute", "Buffer", "InputEdge", "Silent", "Microphone",
+               "Lifecycle", "PlugIn", "Retry", "Bar", "Flat")),
+    ("sync", ("/Sync/", "/Stream/", "OSC", "MIDI", "MPE", "Peer", "Wire", "ArtNet",
+              "Lux")),
     ("ui", ("/Studio/", "Text", "Label", "Chip", "Scroll", "Tap", "Sheet", "Panel",
             "Row", "Size", "Undo", "Menu", "Door", "Header", "Control", "Button",
-            "Project", "Preset")),
+            "Project", "Preset", "Keypad", "Rotation", "Chrome")),
 ]
 
 
@@ -459,10 +490,31 @@ def selftest() -> int:
 
     # 3. The classifier must not put a named topic in `other` — the defect the first
     #    version shipped, where a directory rule left 32 of 53 unclassified.
+    #    ⭐ THE SECOND HALF OF THIS LIST IS THE #1149 ORDER-HAZARD, and it is here because
+    #    a widened table cannot be checked by reading it. `AREAS` is scanned in order, so a
+    #    needle added to an EARLIER area silently steals an ask a LATER one gets right. All
+    #    four names below were measured, not imagined: `TheMonoVoiceKeepsTheKeyStillDown`
+    #    actually moved audio → visual on a "Still" needle before the diff caught it, and
+    #    the other three are the shapes that would break next. A needle whose word is a
+    #    whole word in one name and a SYLLABLE in another is the failure mode; these pin it.
     for path, want in [("Tests/CISmoke/TheHarmonizerMixTests.swift", "audio"),
                        ("Tests/CISmoke/PulseLockTests.swift", "bio"),
                        ("Sources/Echoelmusic/Views/MetalBioView.swift", "visual"),
-                       ("Sources/Echoelmusic/Sync/OSCSender.swift", "sync")]:
+                       ("Sources/Echoelmusic/Sync/OSCSender.swift", "sync"),
+                       # "Still" as a syllable — the needle that was written and removed.
+                       ("Tests/CISmoke/TheMonoVoiceKeepsTheKeyStillDownTests.swift", "audio"),
+                       # ⛔ THIS EXPECTATION WAS WRONG WHEN IT WAS WRITTEN AND THE SELFTEST
+                       # SAID SO. The comment claimed "Input" would steal this file FROM
+                       # sync; measured, it was in `other` all along — "MPE" is not "MIDI",
+                       # and nothing in the sync row matched it. #1149 added the `MPE`
+                       # needle, so the expectation is TRUE now for a different reason than
+                       # the one first given, and the hazard it pins is real from here on:
+                       # a bare `Input` in audio would take it back out.
+                       ("Tests/CISmoke/TheMPEInputHasNoZonesTests.swift", "sync"),
+                       # "Key" would have pulled this out of ui; the needle is Flat.
+                       ("Tests/CISmoke/TheKeypadCannotTypeWhatItCannotKeepTests.swift", "ui"),
+                       # "Frame(s)" for visual would have pulled this out of bio.
+                       ("Tests/CISmoke/TheLockNeedsFramesTests.swift", "bio")]:
         got = area_of(path)
         if got != want:
             bad.append(f"area_of({path}) = {got!r}, expected {want!r}")

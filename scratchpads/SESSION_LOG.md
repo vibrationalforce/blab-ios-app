@@ -27179,3 +27179,48 @@ einziger Treffer. Zwei Heimaten auf dieselbe WAHRE Aussage zu prüfen hat diesen
 Python wertet das Default-Argument EAGER aus, also warf sie auf einem benannten Multiplikator.
 Kein Repo-Befund, aber der Grund, warum die erste Ausgabe rot war. 4/4 nach der Korrektur;
 Klammern in beiden Dateien ausgeglichen.
+
+## #1149 — der „OTHER"-Eimer der Geräte-Checkliste war auf 43 von 110 zurückgewachsen
+
+Nach dem Doctor-Lauf gemessen: `founder-verify.py` sortiert die Bitten nach Bereich, damit
+eine Geräte-Sitzung thematisch laufen kann — und **39 % landeten unsortiert**. Das ist
+dieselbe Lage, die der Dateikopf einmal bei 60 % beschrieb („ein Eimer, der 60 % schluckt, ist
+keine Klassifikation, sondern eine Liste").
+
+**Ursache ist keine Regression, sondern Wortschatz:** die Blitz-/Farb-/Look-Arbeit der letzten
+Wochen hat Begriffe geprägt, die die Tabelle nicht kennt — Aurora, Caustics, Dish, Wavefront,
+Shader, Hue, Flash, Blend, Filmic. Dazu Audio-Begriffe (Howl, Harmonizer, Mute, Buffer,
+Microphone, Lifecycle, PlugIn) und `/Sequencer/`.
+
+**Ergebnis:** `OTHER` **43 → 9**, 34 Bitten in benannte Eimer. Verteilung nachher:
+AUDIO 38 · VISUAL 24 · UI 21 · BIO 14 · SYNC 4 · OTHER 9 · NOT ASKS 15.
+
+⭐ **Warum Verbreitern hier sicher ist, anders als jede andere Regel dieser Datei:** ein
+Bereichs-Etikett kann eine Bitte nur AUS `other` heraus bewegen, nie verstecken. Verstecken tut
+`is_reference` — und deshalb ist die Regel dort so viel härter gemessen. Die einzige echte
+Gefahr ist der REIHENFOLGE-Vorrang: eine Nadel in einem FRÜHEREN Bereich klaut eine Bitte, die
+ein SPÄTERER heute richtig einsortiert.
+
+⛔ **DREI NADELN SIND AN GENAU DIESER GEFAHR GESTORBEN, und keine davon hätte ein Lesen der
+Liste gefunden — alle drei kamen aus einem Vorher/Nachher-Diff jeder einzelnen Zuordnung:**
+· **„Still"** traf als SILBE in `TheMonoVoiceKeepsTheKeyStillDownTests` und schob die Datei
+  AUDIO → VISUAL. Die naheliegenden Reparaturen waren beide schlechter (eine dateispezifische
+  Nadel ist per Bauart brüchig; „Frame" hätte `TheLockNeedsFramesTests` aus BIO gerissen). Die
+  Nadel ist deshalb ersatzlos WEG, ihre zwei Bitten bleiben in `other`. **Ein Eimer, der ein
+  Thema ehrlich nicht kennt, ist besser als einer, der über den Nachbarn falsch liegt.**
+· **„Input"** für Audio hätte `TheMPEInputHasNoZonesTests` gegriffen → Nadel ist `InputEdge`.
+· **„Key"** für die Tonart hätte `TheKeypadCannotTypeWhatItCannotKeepTests` aus UI gerissen →
+  Nadel ist `Flat`.
+
+⛔ **UND DER SELBSTTEST HAT EINEN FEHLER IN MEINER EIGENEN BEGRÜNDUNG GEFANGEN.** Ich schrieb
+als Pin, „Input" hätte die MPE-Datei aus `sync` geklaut. Gemessen: sie war nie in `sync` —
+`MPE` ist nicht `MIDI`, und keine Nadel der sync-Zeile traf sie; sie stand die ganze Zeit in
+`other`. Der Selbsttest wurde rot auf MEINER Erwartung, nicht auf dem Code. Reparatur: die
+Nadel `MPE` ist ergänzt (SYNC 2 → 4), die Erwartung stimmt jetzt aus einem ANDEREN Grund als
+dem zuerst genannten, und beides steht so am Pin. **Eine Begründung, die man nicht misst, ist
+eine Vermutung — auch wenn die Erwartung am Ende zufällig eintrifft.**
+
+**Gepinnt** in `--selftest` (Prüfung 3): vier neue Erwartungen, jede eine gemessene
+Reihenfolge-Gefahr. Mutanten-Probe ausgeführt: „Still" wieder eingesetzt → `area_of` liefert
+`visual` statt `audio`, der Pin wird also nachweislich rot. `--selftest` grün (0 Probleme),
+Diff über alle 125 Zeilen: **34 Umzüge, alle aus `other`, KEIN verbotener.**
