@@ -44,6 +44,22 @@ import simd
 /// MSL source below (6 contiguous floats).
 private struct BioUniforms {
     var time: Float = 0
+    /// Heart rate in BPM, sanitised to 40…200 and eased with tau 1.2 s.
+    ///
+    /// ⛔ NO SHADER READS THIS (#1119, measured: `u.hr` occurs ZERO times in the MSL source
+    /// below). The heart reaches the picture through `pulseHz` and `pulsePhase` instead —
+    /// which is the correct route, because those are the flash-clamped quantities and a raw
+    /// BPM is not. So this field is sanitised, eased and uploaded every frame for nothing.
+    ///
+    /// ⚠️ IT IS KEPT ON PURPOSE, AND DELETING IT IS MORE DANGEROUS THAN IT LOOKS. This
+    /// struct is mirrored by hand as `struct Uniforms { float time; float hr; … }` inside the
+    /// runtime-compiled Metal source in this same file. The two are matched by BYTE LAYOUT,
+    /// not by name, and NO COMPILER CHECKS THAT: removing the field from one side and not the
+    /// other silently shifts every uniform after it, so `coherence` would be read as
+    /// `breath`, `breath` as `aspect`, and so on down the block. The picture would not fail
+    /// to build — it would render wrongly, and the cause would be four files away from the
+    /// symptom. If it is ever removed, both declarations move in ONE commit and a device run
+    /// confirms the picture, because no gate here can.
     var hr: Float = 60
     var coherence: Float = 0.5
     var breath: Float = 0.5

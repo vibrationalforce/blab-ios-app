@@ -26180,3 +26180,40 @@ Compiler die Arbeit besser.
 
 NEEDS-FOUNDER-VERIFY: muss eine Aufführung mit eingeschaltetem Schalter trotzdem laufen? Dann
 ist das ein Pro-Fläche-Override zum Entwerfen, kein Grund, die Einstellung wieder zu ignorieren.
+
+## #1119 — Ein Uniform, das niemand liest, und ein Spiegel, den kein Compiler prüft (2026-09-08)
+
+Aus dem Audit: „totes `hr`-Uniform wird jedes Bild hochgeladen". Nachgemessen: `u.hr` kommt im
+MSL-Quelltext **null** Mal vor. Der Herzschlag erreicht das Bild über `pulseHz` und
+`pulsePhase` — was der richtige Weg ist, denn das sind die blitz-geklammerten Größen, eine rohe
+BPM ist es nicht. Also wird das Feld jedes Bild saniert, geglättet und hochgeladen, für nichts.
+
+**Und dann NICHT gelöscht, weil Löschen hier gefährlicher ist als es aussieht.** Der `struct`
+ist ZWEIMAL deklariert: Swift als `private struct BioUniforms`, und von Hand gespiegelt als
+`struct Uniforms { float time; float hr; … }` im laufzeit-kompilierten Metal-Quelltext.
+Verbunden sind die beiden über das BYTE-LAYOUT (`MemoryLayout<BioUniforms>.stride` ist, was
+hochgeladen wird) — und **nichts prüft das**. Nicht der Swift-Compiler, der den Metal-String nie
+sieht; nicht `TheShippedShaderActuallyCompilesTests`, der beweist, dass das MSL parst, und
+nichts darüber sagt, was Swift ihm schickt. Ein Feld auf einer Seite entfernt und jedes
+folgende Uniform verschiebt sich um vier Byte: `coherence` wird als `breath` gelesen, `breath`
+als `aspect`, 98 Felder lang. Kein Absturz, kein Build-Fehler, nur ein falsches Bild.
+
+Also: Vermerk an der Deklaration **plus** der Wächter, der den Spiegel festnagelt —
+`Tests/CISmoke/TheUniformMirrorHasNoCompilerTests.swift`, drei Ansprüche, transkribiert GRÜN.
+**98 Felder, gleiche Namen, gleiche Reihenfolge, ausnahmslos `Float`.**
+
+⛔ **ZWEI MESS-FALLEN, beide in dieser Scheibe selbst zugeschnappt** — sie stehen im
+Wächter-Kopf, weil die nächste Sitzung sonst dieselben zwei Stunden verliert:
+1. Der Swift-Regex darf **nicht zeilen-verankert** sein. Mehrere Zeilen deklarieren DREI
+   Felder auf einmal (`var cc0r: Float = 0; var cc0g: Float = 0; var cc0b: Float = 0`). Mit
+   `^\s*var` zählt man 48 statt 98 und meldet dann eine Abweichung, die es nicht gibt — genau
+   das ist mir passiert, erste Messung.
+2. Die MSL-Nadel darf nicht von der **PROSA über sie** erfüllbar sein. Der Vermerk, den ich in
+   derselben Scheibe an `hr` geschrieben habe, zitiert `struct Uniforms { float time; float hr;
+   … }` — und eine Nadel dieser Form traf danach den KOMMENTAR statt des Codes. Die
+   `EchoelModalBank`-Falle wörtlich: über eine Sache zu schreiben verfälscht das `grep`, das
+   sie misst. Die Nadel verankert jetzt am DRITTEN Feld, das der Kommentar auslässt.
+
+Der Wächter beweist gleiches Layout aus gleichen Namen — und deshalb ist Anspruch 2 (nichts
+außer `Float`) tragend, nicht dekorativ: ein einziges `Double` oder `simd_float3` würde genau
+dieses Argument brechen, und dann wird Anspruch 2 rot statt Anspruch 1 still grün.
