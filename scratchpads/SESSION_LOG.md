@@ -25871,3 +25871,28 @@ Fehlermeldung; kein Wächter ändert sein Urteil; kein Wächter pinnt eine der g
   über dem Test wurde bei #475 korrigiert, die Meldung darunter — die einzige Zeile, die ein
   Roter je liest — nicht. Wer eine Doc nachzieht, liest die Meldung im selben `func` mit.
 - Gates #1108: Xcode 2448 grün, CI/CD 5913 `Build for Testing` grün, Verdict 134 Passes im Fenster.
+
+## #1110 — der NAME-Grep über `.claude/`: der `ui-state-reviewer` schrieb einen Slot vor, den #1069 gelöscht hat, und `EchoelStudioView` zählte die setterlosen Flaggen seit #1024 falsch
+
+**Messung (Zyklus 05:58Z):** dieselben zwölf Namen über `.claude/` — ein einziger Treffer,
+und er ist PRÄSKRIPTIV: `.claude/agents/ui-state-reviewer.md` sagte „Three slots (`showVisual`,
+`showMeditation`, `midiImportPresented`) have no setter at all and are the first place to look
+for room". Gemessen (`python3 scripts/doctor.py --section C`): `showInput` (#1024) ·
+`midiImportPresented` · `showMeditation` — zwei von drei Namen falsch, in beide Richtungen
+(einer weg, einer dazu). Rückwärts über `Sources/` fand derselbe Begriff `EchoelStudioView.swift`
+~820: „TWO un-settable flags remain … the un-settable pair is unchanged" — der Satz, der SICH
+SELBST „the history of this sentence is the warning" nennt, war zum dritten Mal veraltet: #1024
+hatte die Menge auf DREI gebracht, BEVOR #1069 den Satz umschrieb und „unchanged" hineinsetzte.
+Beide Stellen tragen jetzt den BEFEHL statt einer Liste — genau das, was CLAUDE.md für diese
+Menge seit #747/#1024 verlangt („Die Liste wird gedruckt, nicht abgeschrieben"). Kein Wächter
+pinnt eine der Phrasen; moved-needles: kein Treffer.
+- ⛔ Eigene Rücknahme im selben Commit: die erste Fassung der neuen Anmerkung schrieb „three
+  weeks earlier" für den Abstand #1024→#1069 — ungemessen, tatsächlich ein Tag (2026-09-06 →
+  2026-09-07, `git log --grep`). Die #708-Falle in genau dem Satz, der vor Zahlen warnt; die
+  Spanne ist gestrichen, die ORDNUNG (#1024 ist Vorfahr von #1069) ist gemessen.
+- Nächster Kandidat, gemessen, nicht gebaut: FÜNF Agent-/Command-Dateien schreiben AUv3-Arbeit
+  vor (`planning-agent` „Plugin Architecture Patterns", `security-agent` „Audio Plugin
+  Security", `tdd-agent` „AUv3 Integration Tests" mit `EchoelVoiceAudioUnit` — Typ existiert
+  nirgends —, `multi-plan` „Agent 2: AUv3 Shell", `tdd.md` „For AUv3 tests"); nur
+  `e2e-test-agent` bekam 2026-08-12 die Rücknahme. Zwei Scheiben (Agents, dann Commands).
+- Gates #1109: Xcode 2449 grün, CI/CD 5914 `Build for Testing` grün, Verdict 167 Passes im Fenster.

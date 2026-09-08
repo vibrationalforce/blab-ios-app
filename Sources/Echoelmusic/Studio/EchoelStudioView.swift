@@ -817,13 +817,17 @@ struct EchoelStudioView: View {
     // roll's craft-editor slot went (founder 2026-07-26, "Pianoroll soll raus" — it
     // held exactly one case, so removing the roll's door would have left an undoored
     // enum, the lying-`toolItems` trap), then 15 → 14 with this sample-browser slot.
-    // TWO un-settable flags remain (`showMeditation`, `midiImportPresented`) — reuse one of
-    // those before ever appending a 14th. ⭐ THE HISTORY OF THIS SENTENCE IS THE WARNING. It
-    // said THREE until #747 gave `showVisual` a real setter, at which point that slot became a
-    // LIVE surface rather than spare headroom — and it said so here. #1069 then DELETED the
-    // cover outright, on the founder's "alles zu einem Ding zusammen gefasst": the chain is
-    // 14 → 13, the un-settable pair is unchanged, and none of ship-gate 4 went with it (the
-    // field, the donut renderer and the still shutter all live in the ONE window now).
+    // The un-settable flags are the reuse reservoir — MEASURE them, `python3 scripts/doctor.py
+    // --section C` prints file and line per flag — and reuse one before ever appending a 14th.
+    // ⭐ THE HISTORY OF THIS SENTENCE IS THE WARNING. It said THREE until #747 gave `showVisual`
+    // a real setter, at which point that slot became a LIVE surface rather than spare headroom
+    // — and it said so here. #1069 then DELETED the cover outright, on the founder's "alles zu
+    // einem Ding zusammen gefasst": the chain is 14 → 13, and none of ship-gate 4 went with it
+    // (the field, the donut renderer and the still shutter all live in the ONE window now).
+    // ⛔ "TWO un-settable flags remain (`showMeditation`, `midiImportPresented`) … the
+    // un-settable pair is unchanged" stood here until #1110 — and #1024 had already made it
+    // THREE (`showInput`, the mic door's slot) BEFORE #1069 rewrote this sentence. The sentence
+    // that calls its own history the warning aged a third time; hence the command, not a count.
     // The moral is not the number — it is that a slot can go from headroom to product and back
     // inside six weeks, so COUNT before you reuse one, never quote this line.
     // Whoever adds the next craft editor re-introduces its slot as a

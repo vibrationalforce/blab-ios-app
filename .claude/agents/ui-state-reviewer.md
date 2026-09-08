@@ -58,8 +58,12 @@ One more `.sheet`/`.fullScreenCover`/`.alert`/`.fileImporter` on it = SIGSEGV at
 render, before anything appears (a black screen). An `AnyView` split does **not** save it.
 
 - To add a modal: **reuse an existing slot**, or fold the whole chain into one
-  `.sheet(item:)` enum first. Three slots (`showVisual`, `showMeditation`,
-  `midiImportPresented`) have no setter at all and are the first place to look for room.
+  `.sheet(item:)` enum first. The setterless slots are the first place to look for room —
+  **print them, do not copy them**: `python3 scripts/doctor.py --section C` (file and line per
+  flag). ⛔ A list of three stood here (`showVisual`, `showMeditation`, `midiImportPresented`)
+  and was wrong in two of three by #1110: `showVisual` went with the cover in #1069, and #1024
+  added `showInput` — the set moves in both directions, and a copied list is what the doctor
+  section exists to replace (#1110).
 - **Never drive two modals `true` at once** — that installs an invisible tap-blocking layer.
 - ⛔ **Do NOT flag the nested pair as a defect.** The old rule read *"No nested sheets (iOS
   limitation) → MEDIUM"*. This file deliberately carries two modifiers nested inside another
