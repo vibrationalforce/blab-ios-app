@@ -1453,3 +1453,24 @@ beschränken (#292, `afcf3aa`).
   ASC. Geräteverifiziert: nichts. Mirror: `decisions.csv:747`.
 - **Review 2026-10-07:** Hat der Founder das Bild gesehen? Dann Website „five", und die Frage
   „öfter/seltener" (Stellschraube 200 m/s²) entscheiden.
+
+### 2026-09-07/08 — Drei Sweeps genügen, und nach einem Löschen wird der NAME gegrept (#1103–#1106)
+- **Werkzeug (#1103):** `scripts/moved-needles.py` beschriftet Wächter, die eine Nadel nur in
+  Kommentar oder `"""`-Fehlermeldung tragen, mit ` (prose)` und findet eine zitierte Nadel auch
+  ESCAPED (`Text(\"…\")`). Beide Fehler der ersten Fassungen (Raw-String-Closer als Fence; ein
+  escaped Anker als Prosa gelesen) fielen nur durch die Messung gegen die 22 Agenten-Urteile auf.
+  Die Escape-Reparatur machte vier echte Anker sichtbar, die kein früherer Lauf sah.
+- **Befund (drei Sweeps, 56 Lesungen):** sieben versteckte Rote/Leere, ALLE im Fenster ab
+  2026-09-05 (#1023b/#1027/#1069/#1024). Das ältere Fenster 08-28→09-06: 23 von 23 grün. **Kein
+  vierter Sweep** über ältere Fenster — 23 Agenten für null Befund.
+- **Folgeklasse (#1104–#1106):** ein Lösch-Commit zieht Wächter und CLAUDE.md nach (#456) und
+  lässt die Prosa in NACHBAR-Dateien stehen, die das Gelöschte als Tür oder Zähler zitiert.
+  Gemessen: 18 Stellen in acht Dateien nannten den mit #1069 gelöschten Cover / das VJ-Overlay
+  (als Donut-Tür, als zweite Montage, als „Kette 14 mit 2 fullScreenCover") oder den mit #1027
+  entfernten Breiten-Deckel noch als Gegenwart. **Regel:** nach dem Löschen `git grep -i` über
+  den NAMEN der Sache („cover", „overlay"), nicht nur über ihre Variable (`showVisual`), über
+  `Sources/`, `Tests/` UND die nutzer-sichtbare Kopie — Letztere war sauber (#1106-Zyklus).
+- **Bewusst nicht gebaut:** `GuideOverlay`s `.frame(maxWidth: 560)` — auf jedem ausgelieferten
+  iPhone inert, eine Karte, keine Ansicht; gehört in die iPad-Runde, nicht in einen unsichtbaren
+  Pixel-Eingriff ohne Auge.
+- Review: 2026-10-07. `decisions.csv:748`.
