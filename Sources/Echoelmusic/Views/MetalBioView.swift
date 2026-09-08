@@ -1761,11 +1761,44 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
     // Bonus the halving buys: post-fix the centre field is (1 − cos φ)/2, the SAME form
     // as the heartbeat bloom below, so the rings now peak ONCE per beat in phase with it
     // instead of twice per beat interleaved with it.
-    float fieldRings(float d, float density, float phase, float coh) {
+    //
+    // ⭐ #1128 — THE SOUNDING PITCH REACHES THIS LOOK AT LAST, AND HERE IT IS NOT A MAPPING
+    // CHOICE BUT THE DEFINITION. This field is two-beam interference; the fringe spacing of
+    // two interfering beams IS the wavelength, Λ = λ / (2 sin θ). A wavenumber that ignores
+    // the tone is the one thing an interference picture cannot honestly do. Rings was the
+    // LAST of the five selectable looks the pitch did not reach — Water and Aurora take
+    // `toneHz` directly, Dish and Depth take it through `u.dishK`'s gravity–capillary solve.
+    //
+    // ⚠️ THE EXPONENT IS 1, NOT THE 2/3 THIS FILE USES ELSEWHERE, AND COPYING THE NEIGHBOUR
+    // WOULD HAVE BEEN THE ERROR. `fieldWater`'s k ∝ f^(2/3) is the CAPILLARY dispersion
+    // relation (ω² ∝ k³) — true of a rippled water surface and of nothing else here.
+    // Two-beam interference is non-dispersive: λ = c/f, so k ∝ f, linear. Two looks, two
+    // different laws, and the tell that they must differ is that one has a medium and the
+    // other does not. Borrowing a recipe from the function above is exactly the failure this
+    // file records elsewhere as the `EchoelModalBank` trap.
+    //
+    // ⚠️ `density` IS A USER DIAL (`u.ringDensity`), which makes this different in kind from
+    // #1125 and #1127 — there a parameter was passed and ignored, an outright defect. Here a
+    // finger already controls the spacing, so the dial STAYS THE BASE: the pitch factor is
+    // exactly 1.0 at the 261.63 Hz reference, so at C4 the picture is precisely what the dial
+    // has always said. It is clamped to [0.5, 2.0], i.e. the two octaves either side of C4
+    // move the fringes and everything beyond saturates rather than collapsing the field into
+    // a wash (low) or aliasing hash (high). The PRODUCT is then re-clamped into the dial's own
+    // shipped 4…120 band, so the pitch moves within an already-safe range and can introduce
+    // no spacing that did not exist before.
+    //
+    // FLASH BUDGET: UNTOUCHED, and derivable rather than hoped for. `k` multiplies `d`, a
+    // SPATIAL coordinate; it carries no phase, exactly as `fieldAurora`'s `rays` and
+    // `fieldWater`'s `s` do. The row stays (ringsPhaseDamping, folds: true) = 2.50 Hz.
+    // ⚠️ Rings has been the app's BINDING row since #1127 (margin +0.50, the tightest there
+    // is). Nothing phase-bearing may be added here.
+    float fieldRings(float d, float density, float toneHz, float phase, float coh) {
+        float pitchK = clamp(max(toneHz, 20.0) / 261.63, 0.5, 2.0);  // λ = c/f ⇒ k ∝ f
+        float k = clamp(density * pitchK, 4.0, 120.0);      // stays inside the dial's own band
         float p = phase * \(FlashGuard.ringsPhaseDampingLiteral);   // squared field ⇒ damped phase
-        float w1 = sin(d * density - p);
+        float w1 = sin(d * k - p);
         float detune = mix(1.6, 1.02, coh);                 // high coh → near-unison, ordered
-        float w2 = sin(d * density * detune - p * 0.5);
+        float w2 = sin(d * k * detune - p * 0.5);
         float interf = (w1 + w2) * 0.5;                     // superposition, [-1,1]
         float intensity = interf * interf;                  // energy = amplitude² → crisp fringes
         return pow(intensity, mix(1.0, 2.6, coh));          // coherence sharpens the maxima
@@ -2150,7 +2183,7 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
         // the look to a black centre — it only tightens the soft frame.
         float vEdge = 0.9 + 0.5 * spread;          // 0.9 … 1.7, always > screen radius
         float vig = smoothstep(vEdge, 0.0, d);
-        if (si < 0.5)       field = fieldRings(d, density, phase, coh);
+        if (si < 0.5)       field = fieldRings(d, density, toneHz, phase, coh);
         else if (si < 1.5)  field = fieldChladni(pf, toneHz, phase, coh);
         else if (si < 2.5)  field = fieldDish(pf, u_dishK, u_dishStrength, u_dishHex, phase, coh);
         else if (si < 3.5)  field = fieldWater(pf, toneHz, phase, coh, breath);

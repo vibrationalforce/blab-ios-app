@@ -26439,3 +26439,45 @@ saß. Jetzt aus beiden Zeilen ABGELEITET.
 Zwei Wächter, neun Ansprüche, gegen den echten Baum transkribiert GRÜN.
 NEEDS-FOUNDER-VERIFY: Aurora wählen und ruhig atmen — der Vorhang soll mit dem Atem an- und
 abschwellen statt mit einem eigenen Takt.
+
+## #1128 — Rings: der Streifenabstand IST die Wellenlänge (2026-09-08)
+
+**Gemessen zuerst** (`grep -n "^    float field[A-Z]"`): von den FÜNF wählbaren Looks erreichte
+die klingende Tonhöhe VIER — Water und Aurora direkt, Dish und Depth über `u.dishK`. **Rings
+war der letzte, den sie gar nicht erreichte.**
+
+**Und dort war es am schlimmsten**, nicht am unwichtigsten: Rings ist Zweistrahl-Interferenz,
+und der Streifenabstand zweier interferierender Strahlen IST die Wellenlänge (Λ = λ/2sinθ).
+Bei jedem anderen Look ließe sich sagen „Tonhöhe→Geometrie ist eine gewählte Zuordnung". Hier
+nicht: eine Wellenzahl, die die Frequenz ignoriert, ist kein vereinfachtes Interferenzbild,
+sondern ein Widerspruch dazu.
+
+⚠️ **Und es ist die eine Stelle, an der das Gesetz des Nachbarn falsch gewesen wäre.**
+`fieldWater` nutzt k ∝ f^(2/3) — die KAPILLARE Dispersionsrelation (ω² ∝ k³), eine Eigenschaft
+einer Wasseroberfläche. Zweistrahl-Interferenz ist NICHT dispersiv: λ = c/f ⇒ **k ∝ f, linear**.
+Zwei Looks, zwei Gesetze; das Erkennungszeichen ist, dass der eine ein Medium hat und der
+andere nicht. Anspruch 2 pinnt die Linearität, damit ein späteres „vereinheitlichen wir das
+mit fieldWater" rot wird statt still ein Medium zu importieren.
+
+⚠️ **`density` ist ein NUTZER-REGLER** (`u.ringDensity`) — anders als #1125/#1127, wo ein
+Parameter durchgereicht und ignoriert wurde. Council-Verdikt: der Regler bleibt die BASIS.
+Der Tonhöhen-Faktor ist bei 261,63 Hz **exakt 1,0**, also sieht das Bild bei C4 genau so aus
+wie immer; geklammert auf [0,5 … 2,0] (zwei Oktaven wirken, danach sättigt es), und das
+PRODUKT nochmals in das ausgelieferte 4…120-Band des Reglers — die Tonhöhe bewegt sich also
+nur innerhalb bereits sicherer Abstände und kann weder eine Fläche noch Aliasing erzeugen.
+
+**Blitz-Budget unverändert und ableitbar:** `k` multipliziert `d`, eine RÄUMLICHE Koordinate,
+trägt keine Phase — dasselbe Argument wie Auroras `rays`. Zeile bleibt 2,50 Hz. ⚠️ Rings ist
+seit #1127 die ENGSTE Zeile der App (Reserve +0,50); hier darf nichts Phasen-Tragendes dazu.
+
+Wächter `TheRingsCarryTheWavelengthTests`, vier Ansprüche, gegen den echten Baum transkribiert
+GRÜN. Anspruch 4 streift den angehängten Kommentar ab, bevor er nach `phase` sucht — sonst
+verböte er, über sein eigenes Thema zu schreiben (#364 im Kleinen).
+
+**Torstand #1126/#1127 (7a2e8495):** Xcode Compile Check grün · CI/CD `Build for Testing` grün ·
+`TEST FAILURES: 0` (letzter Lauf: 1). ⚠️ **Der Shader-Test taucht namentlich NICHT im
+`tail -200`-Fenster auf — also kein POSITIVER Beweis, nur die Abwesenheit des alten Fehlers.**
+Strukturelle Gegenprobe ohne Metal-Compiler: 438/438 Klammern, 38/38 Blöcke, 22 Funktionen,
+keine vor ihrer Definition gerufen, keine `double`-Literale. ⛔ Mein erster Zähler meldete
+446/447 — Fehlalarm, weil er nur ganze Kommentarzeilen strippt und ein angehängter Kommentar
+eine Klammer enthielt. Nachgemessen statt gemeldet.
