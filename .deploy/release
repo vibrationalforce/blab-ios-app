@@ -1,4 +1,4 @@
-build: v10.79.463 — Der Beamer kann keinen abgeschalteten Look mehr zeigen (Blitz-Sicherheit)
+build: v10.79.464 — Doppelter Build erklärt · Preset-Leiste im Sound-Panel trifft die Tippmarke
 branch: claude/echoelmusic-neustart-auv3-6ri2ek (tokenless deploy via .deploy/release bump)
 notes: |
   ⚠ AN DIE NÄCHSTE SESSION: die Versionsnummer in Zeile 1 MUSS die erste im ganzen File
@@ -27,7 +27,85 @@ notes: |
   Kürzen still verschwindet. Wer hier etwas einfügt, prüft die Trefferzahl zuerst.
   Wächter: `TheDeployNoteNamesRealDoorsTests`, Anspruch 4.
 
-  Der Vorgänger ist 10.79.462.
+  ⛔ JEDE ÄNDERUNG AN DIESER DATEI LÄDT NACH TESTFLIGHT HOCH — NICHT NUR EIN BUMP (#1151,
+  am eigenen Leib gemessen). `.github/workflows/testflight.yml` triggert auf
+  `push: paths: ['.deploy/release']`, also auf JEDEN Treffer dieses Pfades. Der Kommentar
+  IM Workflow sagt „only an explicit `.deploy/release` bump" — das ist eine ABSICHT, die
+  ein Pfad-Filter nicht ausdrücken kann, und als Satz ist er falsch.
+
+  Belegt: Commit `35193c43` fasste NUR diesen Kopf, einen Wächter und das Sitzungsprotokoll
+  an — kein `Sources/`-Byte — und Lauf 2583 hat archiviert, exportiert UND hochgeladen
+  („Verify build landed in App Store Connect" = success). `BUILD_NUMBER` ist
+  `github.run_number`, also liegen jetzt ZWEI Builds mit derselben Marketing-Version
+  10.79.463 in TestFlight: 2582 und 2583, mit identischem App-Code.
+
+  ⚠️ UND DAS GESETZ DIREKT DARÜBER MACHT DAS WAHRSCHEINLICHER, weshalb die Warnung hier
+  steht und nicht in einem Protokoll: es fordert, eine Liste an diese Datei ANZUHÄNGEN.
+  Also — **die `--since`-Liste gehört in DENSELBEN Commit wie der Bump, nie in einen
+  Nachtrag.** Wer diese Datei nach einem Deploy noch einmal anfasst, schickt dem Founder
+  einen doppelten Build.
+
+  ⚠️ Reparatur wäre workflow-seitig (Bump erkennen statt Pfad) und ist founder-gated:
+  `.github/workflows/**` = berichten, nicht editieren. Bis dahin ist diese Zeile die
+  einzige Bremse. Wächter: `TheDeployNoteNamesRealDoorsTests`, Anspruch 5.
+
+  Der Vorgänger ist 10.79.463 (und davor 10.79.462).
+
+  ── 0. WARUM DU 10.79.463 ZWEIMAL IN TESTFLIGHT SIEHST ───────────────────
+
+  **Mein Fehler, und er ist harmlos — aber Du sollst nicht rätseln.**
+
+  Builds **2582** und **2583** tragen BEIDE die Version 10.79.463 und enthalten
+  **denselben App-Code**. Grund: der TestFlight-Lauf startet bei JEDER Änderung an der
+  Datei `.deploy/release`, nicht erst bei einer neuen Versionsnummer. Ich habe diese Datei
+  angefasst, um eine Anleitung für die nächste Sitzung hineinzuschreiben — und damit
+  versehentlich einen zweiten, identischen Build losgeschickt.
+
+  **Nimm 2583** (den neueren). Beide verhalten sich gleich.
+
+  Die Warnung steht jetzt im Kopf dieser Datei, damit es nicht wieder passiert. Die
+  eigentliche Reparatur säße im Workflow und gehört Dir — dort steht sogar der Satz
+  „only an explicit bump", der genau das behauptet, was der Filter nicht kann.
+
+  ── 0b. WAS IN 10.79.464 WIRKLICH NEU IST ────────────────────────────────
+
+  **Ehrlich: sehr wenig, und das ist Absicht.**
+
+  Am Verhalten der App hat sich seit 463 **eine einzige Sache** geändert: die Leiste mit
+  den Klang-Presets ist **2 Punkt höher** (32 → 34) und trifft damit die Hausmarke, die
+  ihre beiden Nachbarleisten schon einhalten. Sie war die einzige Pille, deren Höhe
+  gleichzeitig ihre TIPPFLÄCHE war — die anderen kleinen sitzen in unsichtbaren 44er
+  Feldern und dürfen kleiner aussehen.
+
+  Alles andere aus dieser Runde ist **Wahrheitsarbeit im Repo**, die Du nicht siehst:
+  zwei Deiner Prüf-Bitten schickten Dich zu einer Taste, die es nicht mehr gibt; ein
+  Beweis in der Blitz-Sicherheit zeigte auf eine Zeile, die vor sechs Runden geändert
+  wurde; eine Datei versprach „Cymatics als Nächstes", obwohl Cymatics längst als
+  „Dish"-Look läuft. Nichts davon ändert einen Klang oder ein Bild.
+
+  ── 0c. NEU BEANTWORTBAR IN DIESEM BUILD ─────────────────────────────────
+
+  Gedruckt mit `python3 scripts/founder-verify.py --since 7f7d8ce7` (das neue Gesetz im
+  Kopf dieser Datei), also nicht von Hand zusammengesucht:
+
+  **VISUAL (2)** — beide sind BITTEN, die ich umgeschrieben habe, weil sie Dich zu einer
+  entfernten Taste schickten. Der Weg heißt jetzt richtig:
+
+  · Field-Panel öffnen → Schalter **„Spectrum donuts instead of the field"** einschalten →
+    im selben Panel auf **„Fine tune"**. Es dürfen nur noch die Erklärzeile und „Detail"
+    dastehen, und Detail muss die Ringzahl sichtbar ändern. Gegenprobe mit Beamer/AirPlay
+    VERBUNDEN: dann müssen ALLE Regler wieder da sein.
+  · Derselbe Schalter — steht in der Look-Zeile darunter jetzt **„Donuts"** statt eines
+    Metall-Look-Namens? Schalter wieder aus → wieder der Look-Name.
+
+  ⚠️ Der Filter sieht TEXT, nicht Fähigkeit: das sind ALTE Bitten mit neuem Satz, keine
+  neuen Fähigkeiten.
+
+  ⚠️ **Weiterhin offen und von mir NICHT erneut gefragt** (steht seit 463 hier): ist das
+  Bild am weitesten, wenn die Lungen VOLL sind, oder wenn sie leer sind? Wenn es
+  umgekehrt ist, kippt jede Atem-Abbildung — Bild, Licht, Raum, Klang — um einen halben
+  Zyklus.
+
 
   ── 1. DER BEAMER KONNTE EIN BILD ZEIGEN, DAS ZU SCHNELL BLINKT ──────────
 

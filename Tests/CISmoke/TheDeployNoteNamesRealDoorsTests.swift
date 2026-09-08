@@ -161,4 +161,30 @@ final class TheDeployNoteNamesRealDoorsTests: XCTestCase {
             the same commit — this file and the note are the only two homes it has.
             """)
     }
+
+    /// 5 — the note warns that ANY touch of it ships a build, not only a version bump (#1151).
+    ///
+    /// Measured the hard way: commit 35193c43 touched only this note's header, a guard and the
+    /// session log — zero bytes under `Sources/` — and `testflight.yml` archived, exported and
+    /// UPLOADED. Its trigger is `push: paths: ['.deploy/release']`, which fires on any change;
+    /// the workflow's own inline comment claims "only an explicit bump", an intent a path
+    /// filter cannot express. TestFlight now holds two builds at marketing version 10.79.463.
+    ///
+    /// ⚠️ CLAIM 4 MAKES THIS MORE LIKELY, which is why the two live side by side: claim 4 asks
+    /// a session to APPEND a list to this file. The warning is what keeps that append inside
+    /// the bump commit instead of after it.
+    ///
+    /// ⛔ Repairing the trigger is founder-gated (`.github/workflows/**` = report, do not
+    /// edit), so this prose is the only brake that exists. If the trigger is ever narrowed to
+    /// a real bump, this claim goes red — and the repair is to retract the warning, not to
+    /// widen the trigger back (#364).
+    func testTheBuildNoteWarnsThatAnyTouchShipsABuild() throws {
+        let note = try text(".deploy/release")
+        XCTAssertTrue(note.contains("NICHT NUR EIN BUMP"), """
+            The build note no longer warns that any change to it uploads to TestFlight. That \
+            warning is the only brake on a duplicate build, because the trigger is a PATH \
+            filter and fixing it is founder-gated. If the workflow was narrowed to a real \
+            version bump, retract this claim in the same commit and say so here.
+            """)
+    }
 }

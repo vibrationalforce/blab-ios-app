@@ -27261,3 +27261,48 @@ Unterscheidung ist der Grund, warum die Korrektur hier steht statt still zu vers
 Wächter: vierter Anspruch in `TheDeployNoteNamesRealDoorsTests` (positiver Scan, #1148-Grund).
 5/5 Prüfungen in Python getrieben, Mutanten-Probe schlägt korrekt fehl, Klammern ausgeglichen,
 Versionsregel unberührt (`v10.79.463` bleibt der erste Treffer im File).
+
+## #1151 — mein #1150-Commit hat versehentlich nach TestFlight hochgeladen, und der Workflow-Kommentar behauptet, das könne nicht passieren
+
+**Gemessen, am eigenen Fehler.** `35193c43` fasste NUR den Kopf von `.deploy/release`, einen
+Wächter und das Sitzungsprotokoll an — **null Bytes unter `Sources/`** — und TestFlight-Lauf
+**2583** hat archiviert, exportiert und **hochgeladen** („Verify build landed in App Store
+Connect" = success).
+
+**Ursache:** `.github/workflows/testflight.yml` triggert auf
+`push: paths: ['.deploy/release']` — also auf JEDE Änderung dieses Pfades. Der Kommentar
+DIREKT DARÜBER sagt „Path-filtered so ordinary code pushes never deploy; only an explicit
+`.deploy/release` bump". Der erste Halbsatz stimmt, **der zweite ist eine ABSICHT, die ein
+Pfad-Filter nicht ausdrücken kann.** `BUILD_NUMBER` ist `github.run_number` ⇒ TestFlight hielt
+zwei Builds mit derselben Marketing-Version 10.79.463 (2582 und 2583), App-Code identisch.
+
+⚠️ **Und mein eigenes #1150-Gesetz macht das WAHRSCHEINLICHER** — es fordert, eine Liste an
+genau diese Datei ANZUHÄNGEN. Deshalb steht die Warnung jetzt direkt darunter, samt der
+Verschärfung: **die `--since`-Liste gehört in DENSELBEN Commit wie der Bump, nie in einen
+Nachtrag.**
+
+**Entscheidung: auf 10.79.464 gebumpt statt einen dritten identischen 463er zu schicken.**
+Der Council-Punkt, der es entschied, kam vom User-Advocate: eine doppelte Versionsnummer
+zerstört die Geräte-Verifikation, weil der Founder nicht mehr sagen kann, WELCHEN Build er
+gerade testet. Ein Build passiert bei dieser Datei ohnehin — dann muss er ehrlich beschriftet
+sein. Die Notiz erklärt den Doppel-Build als meinen Fehler, sagt „nimm 2583", und ist über den
+mageren Inhalt von 464 explizit ehrlich (eine einzige Verhaltensänderung: die Preset-Leiste
+2 pt höher).
+
+⭐ **DER WÄCHTER HAT MEINE EIGENE ÜBERSCHRIFT GEFANGEN, und das ist der beste Beleg, dass er
+etwas taugt.** Ich schrieb in Zeile 1 „Tippfläche des **Preset-Chips**". `pathTokens` liest
+alles vor `-Chip`/`-Panel` als TÜR und prüft sie gegen die echte Chip-Leiste — „Preset" ist
+keine. **Es gibt keinen Preset-Chip; die Preset-Leiste sitzt IM Sound-Panel.** Genau die
+Falsch-Tür, für die dieser Wächter existiert, und sie stand in der ersten Zeile der Notiz, die
+der Founder liest. Umformuliert auf „Preset-Leiste im Sound-Panel".
+
+⚠️ Zweite Nachlese: meine erste Transkription von Anspruch 3 war falsch (ich suchte
+`echoel_diag.log`, der Anspruch ist BEDINGT und sucht „Diagnose-Log"/„diagnostics log" →
+„Diagnostics"). Der Anspruch war nie rot, meine Nachbildung war es. **Beim Transkribieren
+zählt der Wortlaut des Anspruchs, nicht sein Name.**
+
+**Reparatur des Triggers ist founder-gated** (`.github/workflows/**` = berichten, nicht
+editieren). Bis dahin ist die Prosa die einzige Bremse. Wächter: fünfter Anspruch in
+`TheDeployNoteNamesRealDoorsTests` (positiver Scan, #1148-Grund); er wird rot, wenn der Trigger
+je auf einen echten Bump verengt wird, und sagt dann, die Warnung sei zurückzunehmen — nicht
+den Trigger wieder zu öffnen (#364). Alle 6 Prüfungen in Python getrieben, grün.
