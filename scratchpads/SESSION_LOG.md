@@ -25849,3 +25849,25 @@ ABWESENHEITS-Pin (Datei darf nicht zurückkommen) — korrekt.
 - Vier Sweeps + dieser: 31 Stellen in 16 Dateien. Sources, Tests, CLAUDE.md und die nutzer-
   sichtbare Kopie sind für diese fünf Namen jetzt gegrept; `docs/dev/*.md` bewusst nicht (datierte
   Berichte, kein Präsens-Anspruch).
+
+## #1109 — der NAME-Grep über die restlichen sieben Löschungen in `Tests/` fand zusätzlich einen Dateikopf in `Sources/`: `ClipStore` erklärte seine Befüllung mit einem Panel, das #121 Slice 4 gelöscht hat
+
+**Messung (Zyklus 04:58Z):** `git grep -E` über `Tests/` nach `PianoRollView`, `ClipView`,
+`BrowserView`, `SampleBrowserView`, `FileWaveformView`, `WaveformView`, `TimelineAutomationRow`,
+`DrumSynthVoice`, `LaneDrumKitVoice`, `DrumNoteMap`, `showVisual`, `craftEditor`, Rücknahme-
+Zeilen ausgeschlossen; danach die gefundenen Begriffe rückwärts über `Sources/`. Fünf Stellen in
+vier Dateien: `Core/ClipStore.swift` sagte im Kopf „Capture/launch wiring … lives in the one-view
+Clips panel" — `ClipView` ging mit #121 Slice 4; heute füllen `TimelineStore.ensureComposerRegion`/
+`ensureUserMidiRegion` das Gitter, `TakeRecorder` ist türlos (#204). `ClipTests` erzählte
+„the round-trip ClipView performs / what ClipView.capture does" im Präsens (der Modell-Round-Trip
+ist unverändert lebendig). `OneStartControlTests` trug in der FEHLERMELDUNG genau die pre-#475-
+Formulierung („Nothing outside PianoRollView … the pause button"), vor der die Doc darüber seit
+#475 warnt — die Doc war nachgezogen, die Meldung nicht. `VisualFineTuneReflowsTests` sagte
+zweimal „`showVisual` has no true-writer" — die Flagge selbst ging mit dem Cover in #1069
+(`EchoelStudioView.swift` sagt es selbst: „because it no longer exists"). Nur Prosa und eine
+Fehlermeldung; kein Wächter ändert sein Urteil; kein Wächter pinnt eine der geänderten Phrasen
+(gegrept); moved-needles: kein Treffer.
+- Lehre, neu gegenüber #1104–#1108: **eine Fehlermeldung ist Prosa mit Verzögerung.** Die Doc
+  über dem Test wurde bei #475 korrigiert, die Meldung darunter — die einzige Zeile, die ein
+  Roter je liest — nicht. Wer eine Doc nachzieht, liest die Meldung im selben `func` mit.
+- Gates #1108: Xcode 2448 grün, CI/CD 5913 `Build for Testing` grün, Verdict 134 Passes im Fenster.

@@ -154,10 +154,13 @@ final class OneStartControlTests: XCTestCase {
             $0.text.contains("requestPlaybackOnlyStop()") && $0.file != "PianoRollView.swift"
         }
         XCTAssertFalse(producers.isEmpty, """
-        Nothing outside PianoRollView requests a playback-only stop, so the pause button ends \
-        the whole bio session — camera included — and is a duplicate of the front plate's Stop \
+        Nothing outside `PianoRollView.swift` (which since #475 holds only the DECLARATION) \
+        requests a playback-only stop, so the transport ■ (`PlaybackToggleButton`) ends the \
+        whole bio session — camera included — and is a duplicate of the front plate's Stop \
         with a ~20 s pulse re-lock as its hidden price. Either restore a producer or remove the \
-        button; do not leave the justification standing without the mechanism.
+        button; do not leave the justification standing without the mechanism. (⛔ "the pause \
+        button" of PianoRollView stood here until #1109 — the doc above already said that \
+        button went with #475; the message had not followed.)
         """)
     }
 

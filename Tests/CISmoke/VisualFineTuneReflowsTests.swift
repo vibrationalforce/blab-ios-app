@@ -316,7 +316,8 @@ final class VisualFineTuneReflowsTests: XCTestCase {
     /// ⭐ #1067 (S3b) MOVED THE DOOR RATHER THAN REMOVING IT, and that is the distinction this
     /// claim now has to carry. The "Full screen" button is still there, still labelled, still in
     /// `visualPanel` — it no longer raises the fullscreen COVER, it resizes the ONE floating
-    /// window (`openFullscreenVisual()`). So `showVisual` has zero true-writers again, and reading
+    /// window (`openFullscreenVisual()`). So `showVisual` HAD zero true-writers again (⛔ and since
+    /// #1069 the flag itself is gone with the cover — #1109), and reading
     /// that as "the door was removed" — which the previous message did, in capitals — would be
     /// exactly backwards on a tree that just delivered the founder's ask ("alles zu einem Ding
     /// zusammen gefasst"). The subject of this claim is THE DOOR, not the flag it used to write.
@@ -413,7 +414,8 @@ final class VisualFineTuneReflowsTests: XCTestCase {
     /// which is not behind the cover and does not care whether the cover exists. From that commit
     /// on, the two facts are independent: the normalisation must stay deleted because a REACHABLE
     /// two-way switch exists, not because a particular modal does. #1067 then made the old
-    /// coupling actively misleading — `showVisual` has no true-writer any more, so the old
+    /// coupling actively misleading — `showVisual` had no true-writer any more (the flag went
+    /// with the cover in #1069 — #1109), so the old
     /// assertion read `NotEqual(false, false)` and went red on a tree where the donut look is
     /// MORE reachable than when the claim was written, not less.
     ///

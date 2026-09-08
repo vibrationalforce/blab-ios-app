@@ -1,8 +1,11 @@
 // ClipStore.swift
 // Echoel — the session grid of launchable clips. Holds a fixed set of slots,
-// persisted as JSON in the App Group. Capture/launch wiring (snapshotting the
-// live PatternEngine + PianoRollModel) lives in the one-view Clips panel, which
-// has those engines in the environment; the store is pure data.
+// persisted as JSON in the App Group. The store is pure data.
+// ⛔ "Capture/launch wiring … lives in the one-view Clips panel" stood here until #1109;
+// that panel (`ClipView`) went with #121 Slice 4. Today the grid is filled by
+// `TimelineStore.ensureComposerRegion` / `ensureUserMidiRegion` (composer-driven, one
+// slot per lane) and read back by `TimelineRegionPlayer` / `ArrangementPlayer`; the
+// hand-capture path (`TakeRecorder` via `RecordController`) is built but doorless (#204).
 
 import Foundation
 import Observation

@@ -62,8 +62,12 @@ final class PatternLoadTests: XCTestCase {
         XCTAssertEqual(engine.steps, original, "malformed clip is ignored")
     }
 
-    /// The capture→launch round-trip ClipView performs: snapshot the live beat +
+    /// The capture→launch round-trip the Clips panel PERFORMED: snapshot the live beat +
     /// melody into a Clip, then launch it into fresh engines and get it back.
+    /// ⛔ "ClipView performs" stood here until #1109 — `ClipView` went with #121 Slice 4.
+    /// The MODEL round-trip is what this test pins, and it is unchanged: `Clip` +
+    /// `PatternEngine.load` + `PianoRollModel.load` are all live (`TimelineStore` builds
+    /// the same shape of clip today).
     func testCaptureLaunchRoundTrip() {
         let pattern = PatternEngine()
         pattern.setStep(track: 1, step: 4, on: true)
@@ -71,14 +75,14 @@ final class PatternLoadTests: XCTestCase {
         let roll = PianoRollModel()
         _ = roll.add(pitch: 62, startStep: 2, lengthSteps: 3, velocity: 0.6)
 
-        // capture (what ClipView.capture does)
+        // capture (what the deleted ClipView.capture did)
         let clip = Clip(
             name: "Take",
             drums: DrumPattern(steps: pattern.steps, accents: pattern.accents),
             melody: MelodyClip(notes: roll.notes)
         )
 
-        // launch into fresh engines (what ClipView.launch does)
+        // launch into fresh engines (what the deleted ClipView.launch did)
         let pattern2 = PatternEngine()
         let roll2 = PianoRollModel()
         if let d = clip.drums { pattern2.load(steps: d.steps, accents: d.accents) }
