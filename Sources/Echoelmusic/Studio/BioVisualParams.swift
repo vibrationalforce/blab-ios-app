@@ -44,6 +44,15 @@ public struct BioVisualParams: Sendable, Equatable {
     /// Heartbeat pulse frequency in Hz — already flash-clamped (0…3 Hz; 0 = still).
     public var pulseHz: Double
     /// Hue [0…1]; coherence shifts red→cyan (calmer = cooler).
+    ///
+    /// ⛔ NO CONSUMER (#1116, measured). `MetalBioView` reads only `pulseHz` off this
+    /// struct — it says so at both its `BioVisualParams.from` call and its `update()`
+    /// call — and it takes its hue from the sounding TONE plus the VJ `hueShift`
+    /// slider instead. So this value is computed on every frame and used by nothing.
+    /// It is kept, not deleted, for the #527 reason: the struct is the ONE pure
+    /// bio→visual mapping and a future surface (the external stage, a second renderer)
+    /// is the natural consumer. **Do not quote it as a shipping mapping** — six website
+    /// lines did exactly that until #1116 took them back.
     public var hue: Double
     /// Pattern complexity [0…1]; HRV drives ring count / Chladni order.
     public var complexity: Double

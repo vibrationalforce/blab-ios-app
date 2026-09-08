@@ -1145,11 +1145,100 @@ final class WebsitePagesAreFindableAndHonestTests: XCTestCase {
                 The Bio-Mappings table names "\(dead)" again. Measured: LF/HF is not read \
                 in `applyBioReactive`'s body at all, the coherence-trend spectral morph can \
                 never leave its deadband while `coherenceTrend` is 0, and HRV drives pattern \
-                COMPLEXITY while COHERENCE drives hue — the palette row had them swapped. If \
-                a real producer appears, wire it, then change this line and the table \
-                together.
+                COMPLEXITY while the SOUNDING TONE drives hue — the palette row had them \
+                swapped. If a real producer appears, wire it, then change this line and the \
+                table together.
+                ⛔ THIS MESSAGE SAID "COHERENCE drives hue" UNTIL #1116, WHICH IS THE CLAIM \
+                THAT SLICE RETRACTED — a blocking guard was carrying the false mapping in its \
+                own explanation while six website lines repeated it. The renderer takes its \
+                colour from `toneColour` (pitch → visible spectrum) plus the VJ `hueShift` \
+                slider; coherence buys ORDER, not colour. See \
+                `testTheHueComesFromTheToneNotTheCoherence` below.
                 """)
         }
+    }
+
+    /// THE COLOUR COMES FROM THE TONE YOU HEAR, NOT FROM YOUR COHERENCE (#1116).
+    ///
+    /// ⛔ WHAT IT CAUGHT. "coherence → hue" stood in `MetalBioView`'s own header from the
+    /// file's first line of existence and had reached SIX present-tense places on the public
+    /// site (`overview.html` ×3, `index.html`, `architecture.html` ×3), plus
+    /// `docs/dev/FEATURE_MATRIX.md` and — worst of all — the failure message of the sibling
+    /// test directly above this one. It was never true of this renderer. Measured against the
+    /// shader: the fragment colour is `toneColour` (the sounding pitch transposed into the
+    /// visible spectrum, twin of `SpectralColor.toneLinearRGB`), the note CLOUDS anchored at
+    /// their pitch-space places, and the VJ `hueShift` slider. `u.coherence` arrives as `coh`
+    /// and every `field*` function spends it on ORDER — `pow(intensity, mix(1.0, 2.6, coh))`
+    /// in Rings, `mix(0.16, 0.045, coh)` line width in Lissajous, the curtain edge in Aurora.
+    /// The single place coherence ever produced a hue is `BioVisualParams.hue`
+    /// (= coherence × 0.45), and the renderer states twice that the field has no consumer.
+    ///
+    /// This is the #184 class: a false capability claim in shipped copy is a 2.3 rejection
+    /// risk, not a typo — and this one was worse than a stale number, because no build ever
+    /// implemented it. The true story is also the better one: the colour you see IS the
+    /// frequency you hear, moved up whole octaves into light.
+    ///
+    /// ⚠️ SCOPE, stated so the green is not over-read. It checks the three PRESENT-TENSE
+    /// pages by name. `brainstorming.html` is deliberately NOT checked: it is a dated
+    /// changelog that carries its own "read as history" banner, and its build-1867 entry
+    /// predates the tone→colour work that `version.json`'s build-1881 entry announces — so
+    /// rewriting it would falsify an archive rather than correct a claim. `docs/dev/**` and
+    /// `version.json` are outside `pages()` entirely (see this file's header).
+    ///
+    /// ⚠️ IT DOES NOT FORBID BUILDING THE MAPPING (#364). Claim 2 is the counterweight: it
+    /// pins the PREMISE, not the outcome. Wire `vp.hue` into the renderer and claim 2 goes
+    /// red first, naming the pages to update in the same commit — the ban lifts with the
+    /// code, it does not outlive it.
+    func testTheHueComesFromTheToneNotTheCoherence() throws {
+        // Claim 1 — no present-tense page pairs coherence with hue.
+        let presentTense = ["index.html", "overview.html", "architecture.html"]
+        let all = try pages()
+        for name in presentTense {
+            guard let html = all.first(where: { $0.name == name })?.html else {
+                return XCTFail("""
+                    docs/\(name) is missing, so this claim checked nothing (#454: a missing \
+                    ANCHOR fails, it does not skip). If the page was renamed, point this \
+                    list at its new name in the same commit.
+                    """)
+            }
+            // Normalise the entities and spacers the site actually uses, so the needle can
+            // match every written form: "coherence to hue", "coherence the hue",
+            // "coherence drives the hue", "coherence&rarr;hue", "coherence&nbsp;&rarr;&nbsp;hue".
+            var flat = html.lowercased()
+            for (from, to) in [("&nbsp;", " "), ("&rarr;", "→"), ("&mdash;", " "), ("\n", " ")] {
+                flat = flat.replacingOccurrences(of: from, with: to)
+            }
+            while flat.contains("  ") { flat = flat.replacingOccurrences(of: "  ", with: " ") }
+            for needle in ["coherence to hue", "coherence the hue", "coherence drives the hue",
+                           "coherence→hue", "coherence → hue"] {
+                XCTAssertFalse(flat.contains(needle), """
+                    docs/\(name) says "\(needle)" again. The renderer does not do this and \
+                    never did: colour comes from the sounding TONE (`toneColour`, pitch → \
+                    visible spectrum) plus the VJ `hueShift` slider, while coherence buys \
+                    SHARPNESS inside every `field*` function. `BioVisualParams.hue` is the \
+                    only coherence→hue term in the tree and `MetalBioView` says twice that it \
+                    has no consumer. #1116 removed this sentence from six places; write \
+                    "sounding tone to hue, coherence to sharpness" instead. If someone \
+                    actually wired the mapping, claim 2 below is red too — fix that first.
+                    """)
+            }
+        }
+
+        // Claim 2 — the COUNTERWEIGHT. Claim 1 rests on `vp.hue` having no consumer, and the
+        // renderer is where that is written down. If the note goes (because the field was
+        // wired), claim 1 has lost its premise and the pages must be re-read, not re-banned.
+        let renderer = try String(
+            contentsOf: repoRoot().appendingPathComponent("Sources/Echoelmusic/Views/MetalBioView.swift"),
+            encoding: .utf8)
+        XCTAssertTrue(renderer.contains("`vp.hue` has no consumer"), """
+            MetalBioView no longer states that `vp.hue` has no consumer. Either the note was \
+            edited away, or the field was WIRED — and the second case is good news that makes \
+            claim 1 above wrong: "coherence → hue" would then be TRUE and the website should \
+            say so again. Re-measure which BioVisualParams fields the renderer reads, then \
+            update this test, `MetalBioView`'s header retraction, `BioVisualParams.hue`'s doc, \
+            `docs/dev/FEATURE_MATRIX.md` and the three present-tense pages in the SAME commit \
+            (#456: this prose has eight homes, and #1116 found seven of them out of step).
+            """)
     }
 
     /// The accessibility page's SHIPPING list must describe features that exist.

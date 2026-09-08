@@ -264,7 +264,7 @@
             <!-- VISUALS & VIDEO -->
             <section id="visuals">
                 <h2>Visuals &amp; Video <span class="tag">LIVE</span> / <span class="tag">ROADMAP</span></h2>
-                <p>A Metal bio-visual ships today: <code>MetalBioView</code> renders a full-screen pulse where heart rate drives the pulse (capped &le;3&nbsp;Hz for WCAG flash safety), coherence drives the hue and breath the spread, honouring Reduce Motion. The wider vision &mdash; a 120&nbsp;fps renderer with richer modes, chroma key and video &mdash; is in active development, not in the app today.</p>
+                <p>A Metal bio-visual ships today: <code>MetalBioView</code> renders a full-screen pulse where heart rate drives the pulse (capped &le;3&nbsp;Hz for WCAG flash safety), the sounding tone drives the hue, breath the spread and coherence the sharpness of the pattern, honouring Reduce Motion. The wider vision &mdash; a 120&nbsp;fps renderer with richer modes, chroma key and video &mdash; is in active development, not in the app today.</p>
                 <div class="data-row"><div class="k">Visual modes (planned)</div><div class="v"><strong>Cymatics</strong> (Chladni standing waves), <strong>Mandala</strong> (radial symmetry), <strong>Particles</strong> (procedural), <strong>Waveform</strong>, <strong>Spectral</strong> bars. <span class="tag">ROADMAP</span></div></div>
                 <div class="data-row"><div class="k">Chroma key (planned)</div><div class="v">A 6-pass GPU pipeline: HSV key extraction → Sobel edge → despill → feather → light-wrap → premultiplied composite, with preview overlays. <span class="tag">ROADMAP</span></div></div>
                 <div class="data-row"><div class="k">Video export (planned)</div><div class="v">Short-form 720×1280 (9:16) H.264 MP4 with animated waveform + HR/coherence overlay. <span class="tag">ROADMAP</span></div></div>
@@ -351,7 +351,7 @@
                 <div class="data-row"><div class="k">EchoelMix <span class="tag">LIVE</span></div><div class="v">AudioEngine · AutoMixChain · SingleExport · RetroCapture. A console mixer is <strong>not planned</strong>; the multi-track recorder is built but flag-gated off with no door.</div></div>
                 <div class="data-row"><div class="k">EchoelMIDI <span class="tag">LIVE</span></div><div class="v">MIDIInput · MIDIBusPublisher → EngineBus.controllerEvents (notes, pitch bend, CC&nbsp;74 slide, press, air-CC). MPE <strong>zone</strong> handling on the way in <span class="tag">ROADMAP</span>.</div></div>
                 <div class="data-row"><div class="k">EchoelBio <span class="tag">LIVE</span></div><div class="v">EchoelBioEngine · BioSignalDeconvolver · BioEventGraph · HilbertSensorMapper · HealthKitBioPublisher (Watch / Oura via Health) · PolarH10BioPublisher (any BLE Heart Rate device) · CameraRPPGBioPublisher (finger-on-lens rPPG, live) · BioSimulator. ADM-OSC object output via <code>ADMOSCSender</code>.</div></div>
-                <div class="data-row"><div class="k">EchoelVis <span class="tag">LIVE</span></div><div class="v">MetalBioView — Metal bio-visual live today (HR&rarr;pulse &le;3&nbsp;Hz, coherence&rarr;hue, breath&rarr;spread). plus richer modes and chroma key <span class="tag">ROADMAP</span>.</div></div>
+                <div class="data-row"><div class="k">EchoelVis <span class="tag">LIVE</span></div><div class="v">MetalBioView — Metal bio-visual live today (HR&rarr;pulse &le;3&nbsp;Hz, tone&rarr;hue, breath&rarr;spread, coherence&rarr;sharpness). plus richer modes and chroma key <span class="tag">ROADMAP</span>.</div></div>
                 <div class="data-row"><div class="k">EchoelVid <span class="tag">CUT</span></div><div class="v">Video editing was built and removed in July&nbsp;2026; RTMP was never built. What remains is <code>VisualRecorder</code> — the immersive visual captured as a share-ready MP4.</div></div>
                 <div class="data-row"><div class="k">EchoelNet <span class="tag">LIVE</span></div><div class="v">OSCSender (EchoelSync) — Ableton Link roadmap</div></div>
                 <div class="data-row"><div class="k">EchoelLux <span class="tag">LIVE</span></div><div class="v">ArtNetSender · SACNSender — native Art-Net (UDP 6454) and sACN / E1.31 (unicast) lighting live today, flash-safe. DMX-512 · HomeKit · fixture profiles · cue lists <span class="tag">ROADMAP</span>.</div></div>
@@ -381,7 +381,7 @@
                             <li>OSC + ADM-OSC out (EchoelSync)</li>
                             <li>Virtual MIDI 1.0 out (behind a routing switch)</li>
                             <li>Native Art-Net + sACN lighting (flash-safe)</li>
-                            <li>Metal GPU bio-visual (HR&rarr;pulse &le;3&nbsp;Hz, coherence&rarr;hue)</li>
+                            <li>Metal GPU bio-visual (HR&rarr;pulse &le;3&nbsp;Hz, tone&rarr;hue, coherence&rarr;sharpness)</li>
                             <li>Sub-bass / LFE voice + Core Haptics</li>
                         </ul>
                     </div>

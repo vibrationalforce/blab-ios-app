@@ -5,8 +5,23 @@
 //  A real Metal renderer for the immersive bio-reactive visual: an MTKView driven
 //  by its own CADisplayLink, with a dedicated MTLCommandQueue, rendering a
 //  full-screen fragment shader whose look is shaped by the live body (heart rate →
-//  pulse, coherence → hue, breath → spread). It reads the EngineBus snapshot only
-//  (multi-reader-safe), never the audio thread.
+//  pulse, breath → spread, coherence → SHARPNESS) and by the sounding tone (pitch →
+//  hue). It reads the EngineBus snapshot only (multi-reader-safe), never the audio
+//  thread.
+//
+//  ⛔ THIS LINE SAID "coherence → hue" FOR AS LONG AS THE FILE HAS EXISTED, AND IT WAS
+//  NEVER TRUE OF THIS RENDERER (#1116). Measured: the fragment colour comes from
+//  `toneColour` (the sounding pitch transposed into the visible spectrum, the twin of
+//  `SpectralColor.toneLinearRGB`), from the note CLOUDS anchored at their pitch-space
+//  places, and from the VJ `hueShift` slider. `u.coherence` reaches the shader as `coh`
+//  and every `field*` function spends it on ORDER — `pow(intensity, mix(1.0, 2.6, coh))`
+//  in Rings, `mix(0.16, 0.045, coh)` line width in Lissajous, the curtain edge in Aurora.
+//  The one place coherence ever produced a hue is `BioVisualParams.hue` (= coherence ×
+//  0.45), and this file states twice (below, at the update() call) that the field has no
+//  consumer here. The sentence was not stale — it described a mapping that no shipped
+//  build implemented. It had reached SIX places on the public website; #1116 corrected
+//  those in the same commit. The true story is the better one: the colour you see IS the
+//  frequency you hear, moved up whole octaves into light.
 //
 //  Why Metal over the SwiftUI Canvas version (BioVisualView): the Canvas redraws on
 //  the CPU on the main thread every frame, competing with the load-bearing beat
