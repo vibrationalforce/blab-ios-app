@@ -153,7 +153,12 @@ final class FlashGuardTests: XCTestCase {
     ///    own multiplier". (⛔ This line named Depth alongside Water until #1117 replaced
     ///    that function; the sine product it referred to is gone.)
     /// 3. It does NOT cover additive superposition (the heartbeat bloom on top of the
-    ///    field) or the A↔B blend union. Those need per-pixel photometry.
+    ///    field). That still needs per-pixel photometry. ⭐ The A↔B BLEND UNION was in this
+    ///    sentence until #1124 closed it: `FlashGuard.blendPhaseDamping` damps the field
+    ///    phase while two looks coexist, swept over every pair by
+    ///    `TheBlendUnionStaysUnderTheCeilingTests` in the BLOCKING bundle. The bloom half
+    ///    remains open and is the harder one — it superposes on the field at a DIFFERENT
+    ///    rate, so no single phase factor can bound it.
     func testEveryReachableLookObeysTheThreeHzLaw() {
         // READ the ceiling, never re-type it: this line used to be `let maxPhaseRate = 2.5`
         // with a comment pointing at MetalBioView, so raising the renderer's cap left the

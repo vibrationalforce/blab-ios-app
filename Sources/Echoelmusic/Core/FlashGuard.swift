@@ -327,6 +327,48 @@ public enum FlashGuard {
         .init(styleIndex: 7, name: "Depth", phaseMultiplier: 0.30, folds: true),
     ]
 
+    /// How much the FIELD phase rate must be slowed so that mixing two looks cannot exceed
+    /// the WCAG ceiling. 1.0 = no change.
+    ///
+    /// ⛔ THE HOLE THIS CLOSES WAS NAMED IN THIS REPO BEFORE IT WAS FIXED, which is the only
+    /// reason it got fixed. `EveryLookHasAFlashBudgetTests` has said since #1114 that the
+    /// per-look budgets "do NOT cover the A↔B blend union", and `FlashGuardTests` says the
+    /// same. It is not a theoretical gap: `mix(fieldA, fieldB, t)` at an intermediate `t`
+    /// puts BOTH oscillations into one pixel's luminance, so the pixel sees the UNION of the
+    /// two flash counts — the same reasoning the shader already applies to the heartbeat
+    /// bloom superposed on the field. And Aurora alone is exactly 3.00 Hz with zero margin,
+    /// inside `LookBlendMap.defaultSequence`, so Water↔Aurora at mid-slider is 4.70 Hz by
+    /// that arithmetic: an ordinary drag of the shipped look slider, over the epilepsy limit.
+    ///
+    /// THE MODEL, stated so it can be argued with rather than trusted:
+    ///   · `w = 2·min(t, 1−t)` — how much the two looks actually COEXIST. 0 at either end of
+    ///     the slider (one look is fully masked by `mix`), 1 in the middle. Continuous, so
+    ///     the damping cannot jump as the user drags.
+    ///   · `union = max(hzA, hzB) + w·min(hzA, hzB)` — the louder look always counts in full;
+    ///     the quieter one is added in proportion to how visible it is. This is a WORST-CASE
+    ///     bound, not a measurement: the two flash trains could also interleave into fewer
+    ///     perceived transitions, never more. Bounding above is the safe direction.
+    ///   · damping = ceiling / union, capped at 1.
+    ///
+    /// ⚠️ EXACTLY 1.0 AT EITHER END, AND THAT IS CHECKED ARITHMETIC, NOT A HOPE. At `t = 0`,
+    /// `w = 0` and `union = max(hzA, hzB)`; Aurora's 1.20 × 2.5 is exactly 3.0 in IEEE 754,
+    /// so `union > maxFlashHz` is false and the factor is the literal 1. A caller multiplying
+    /// a phase increment by 1.0 gets a bit-identical result, so **nothing changes for anyone
+    /// who does not blend** — which is what makes this safe to ship without a device run.
+    ///
+    /// ⚠️ An unknown style contributes `maxFlashHz`, not zero — see `fieldBudget(forStyle:)`.
+    public static func blendPhaseDamping(styleA: Int, styleB: Int, blend: Double) -> Double {
+        guard blend.isFinite else { return 1 }
+        let t = Swift.min(Swift.max(blend, 0), 1)
+        let hzA = fieldBudget(forStyle: styleA)?.effectiveHz ?? maxFlashHz
+        let hzB = fieldBudget(forStyle: styleB)?.effectiveHz ?? maxFlashHz
+        guard hzA.isFinite, hzB.isFinite else { return 1 }
+        let coexistence = 2 * Swift.min(t, 1 - t)
+        let union = Swift.max(hzA, hzB) + coexistence * Swift.min(hzA, hzB)
+        guard union > maxFlashHz, union > 0 else { return 1 }
+        return maxFlashHz / union
+    }
+
     /// The budget for a style index, or `nil` for one that has none.
     ///
     /// ⚠️ `nil` MEANS "UNKNOWN", NOT "FREE". A caller that cannot find a row must assume the

@@ -26294,3 +26294,54 @@ schließen. `nil` heißt dabei ausdrücklich **unbekannt, nicht kostenlos** — 
 das Schlimmste annehmen.
 
 Kein Pixel ändert sich in dieser Scheibe. Drei Ansprüche transkribiert GRÜN.
+
+## #1124 — Zwei gemischte Looks addieren ihre Blitzzahlen; der Regler konnte über 3 Hz (2026-09-08)
+
+**Das Loch stand seit #1114 in zwei Wächter-Köpfen wörtlich als bekannt und ungelöst** („does
+NOT cover the A↔B blend union"). Beide hatten recht und beide ließen es stehen. Es ist nicht
+theoretisch: `mix(fieldA, fieldB, t)` legt bei mittlerem `t` BEIDE Schwingungen in die Leuchtdichte
+EINES Pixels, also sieht das Auge die VEREINIGUNG beider Blitzzahlen — dieselbe Begründung, die
+der Shader für die Herzschlag-Blüte über dem Feld längst anwendet.
+
+Und **Aurora allein sitzt bei exakt 3,00 Hz ohne Rand**, in `defaultSequence`. Wasser↔Aurora in
+der Reglermitte sind damit **4,70 Hz**: ein gewöhnlicher Zug am ausgelieferten Look-Regler,
+über der Epilepsie-Grenze.
+
+**Das Modell** (`FlashGuard.blendPhaseDamping`), bewusst als obere Schranke, nicht als Messung:
+· `w = 2·min(t, 1−t)` — wie stark die beiden Looks wirklich KOEXISTIEREN; 0 an beiden Enden,
+1 in der Mitte, stetig, also kein Sprung beim Ziehen
+· `union = max(hzA,hzB) + w·min(hzA,hzB)` — der lautere zählt voll, der leisere anteilig
+· Dämpfung = 3,0 / union, gedeckelt bei 1
+
+**Zwei Phasen, und das ist der Kern der Umsetzung:**
+1. `fieldPhase` (neu) treibt die FELDER und wird gedämpft.
+2. `pulsePhase` treibt die HERZSCHLAG-BLÜTE und wird NIE gedämpft — der Schlag muss auf der
+   Rate des Körpers bleiben, sonst liest sich das Herz langsamer als es schlägt, und genau
+   darum geht es bei diesem Look.
+
+**Warum ein zweiter Akkumulator statt eines Faktors auf `pulsePhase`:** Phase ist ein
+integrierter WINKEL. Den Winkel zu skalieren ließe das Bild in dem Moment SPRINGEN, in dem sich
+die Dämpfung ändert — also genau während der Nutzer den Regler zieht und hinsieht. Das
+INKREMENT zu skalieren ändert nur die Ableitung: die Bewegung wird weich langsamer, nichts
+springt. Und bei Faktor 1 ist `dt × flashHz × 1.0` dasselbe IEEE-754-Produkt wie `dt × flashHz`,
+mit demselben Wrap — **wer nie mischt, sieht Byte für Byte das alte Bild.**
+
+Die Dämpfung liest die GEGLÄTTETE `uniforms.blend`, nicht `target.blend`: die Mischung, die das
+Auge sieht, ist die geglättete (tau 0,3 s). Vom Ziel aus zu dämpfen würde das Feld bremsen,
+bevor der zweite Look überhaupt eingeblendet ist.
+
+Gemessen (Dämpfung / Vereinigung nach Dämpfung): Wasser↔Aurora Mitte **0,638** · Aurora↔Depth
+Mitte **0,667** · Wasser↔Depth Mitte **0,938** · Dish↔Depth Mitte **1,0** (keine Dämpfung
+nötig) · jedes Reglerende bei jedem Paar **exakt 1,0**.
+
+Der Uniform-Block wächst auf **99 Felder**, in BEIDEN Deklarationen, am ENDE angehängt — die
+einzige Einfügung, die das Byte-Layout nicht verschieben kann. #1119s Spiegel-Wächter prüft es
+und bleibt grün. Genau dafür war er da, einen Commit später.
+
+⭐ **Beide „deckt die Mischung nicht ab"-Vermerke sind im selben Commit korrigiert** (#364: ein
+Wächter, der eine inzwischen falsche Grenze behauptet, ist selbst der Defekt). Der Vermerk
+bleibt als Text stehen, weil die schließende Scheibe **durch das Lesen genau dieses Satzes**
+gefunden wurde: eine benannte Grenze ist eine Aufgabe, die Kontextverlust überlebt.
+
+NEEDS-FOUNDER-VERIFY: den Look-Regler von Wasser durch Aurora ziehen — in der Mitte soll die
+Bewegung leicht langsamer werden, an beiden Enden unverändert sein.

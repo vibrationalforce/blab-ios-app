@@ -28,11 +28,13 @@
 //   · It proves each row's ARITHMETIC and the table's COMPLETENESS. It cannot prove a
 //     hand-derived multiplier actually matches its shader function — that is a re-derivation
 //     a human does when editing the function, and rows have been wrong before.
-//   · It does NOT cover the A↔B BLEND UNION. Two looks mixed at an intermediate blend show
-//     a pixel the union of both flash counts, and Aurora alone already sits at exactly
-//     3.00 Hz with zero margin, in `LookBlendMap.defaultSequence`. That hole is real and
-//     named here on purpose; closing it is its own slice, and `FlashGuard.fieldBudget(
-//     forStyle:)` is the piece it needs.
+//   · It does NOT cover the A↔B BLEND UNION — ⭐ AND THAT IS NO LONGER AN OPEN HOLE, only a
+//     boundary of THIS file. #1124 closed it: `FlashGuard.blendPhaseDamping` slows the field
+//     phase while two looks coexist, and `TheBlendUnionStaysUnderTheCeilingTests` sweeps
+//     every pair. This note stays because a limit that was true for two slices is worth
+//     seeing repaired, and because the closing slice was found by reading exactly this
+//     sentence — a named limit is a to-do that survives context loss, which an unnamed one
+//     is not.
 
 import Foundation
 import XCTest

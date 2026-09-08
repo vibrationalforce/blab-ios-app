@@ -202,6 +202,27 @@ private struct BioUniforms {
     var dishStrength: Float = 0
     /// `dishHex`: 0 = square lattice, 1 = hexagonal — `FaradayDish.latticeHexagonality`.
     var dishHex: Float = 0.5
+    /// The phase the FIELD functions run on (#1124) — integrated from the same rate as
+    /// `pulsePhase` but multiplied by `FlashGuard.blendPhaseDamping`, so that mixing two
+    /// looks cannot put the UNION of their flash counts over the WCAG ceiling.
+    ///
+    /// ⚠️ WHY A SECOND ACCUMULATOR AND NOT A FACTOR ON `pulsePhase`. Phase is an integrated
+    /// ANGLE. Scaling the angle would make the picture JUMP the instant the damping changes,
+    /// i.e. while the user drags the blend slider — exactly when they are looking at it.
+    /// Scaling the INCREMENT changes only the derivative, so the motion slows smoothly and
+    /// the picture never skips. It also stays bit-identical when the factor is 1: `dt ×
+    /// flashHz × 1.0` is the same IEEE-754 product as `dt × flashHz`, and this accumulator
+    /// takes the same wrap, so a user who never blends sees the byte-for-byte old picture.
+    ///
+    /// ⚠️ The heartbeat BLOOM deliberately keeps using `pulsePhase`. The beat must stay ON
+    /// the body's rate — damping it would make the heart read slower than it beats, which is
+    /// the one thing this look is about. Only the FIELD is slowed, and only while blending.
+    ///
+    /// ⛔ DECLARED LAST, and that is the byte-layout law, not a style choice: the Metal
+    /// mirror of this struct is matched positionally, so a field inserted anywhere but the
+    /// end shifts every uniform after it. Appending is the only edit that cannot corrupt the
+    /// block. `TheUniformMirrorHasNoCompilerTests` (#1119) is what checks it.
+    var fieldPhase: Float = 0
 }
 
 /// The touch surface's water-drop events for the Metal renderer (structural rebuild
@@ -1392,6 +1413,23 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
             let flashHz = min(uniforms.pulseHz * uniforms.motion, Float(FlashGuard.maxPulseRateHz))
             uniforms.pulsePhase += dt * flashHz
             if uniforms.pulsePhase > 1e6 { uniforms.pulsePhase -= 1e6 }   // keep it bounded
+            // #1124 — the FIELD phase, slowed only while two looks are actually mixed, so the
+            // union of their flash counts stays under the WCAG ceiling. The factor is the
+            // literal 1 whenever the slider sits on a single look, and × 1.0 is exact in
+            // IEEE 754, so this accumulator then tracks `pulsePhase` bit for bit.
+            //
+            // ⚠️ IT READS THE EASED `uniforms.blend`, NOT `target.blend`. The mix the eye sees
+            // is the eased one (tau 0.3 s, line below), so damping off the target would slow
+            // the field before the second look had actually faded in — and speed it back up
+            // before the first had faded out. The damping has to track what is on screen.
+            // The uniform holds the style as a Float (the shader dispatches on `si < n.5`);
+            // the budget table is keyed by the Int index, so convert here rather than
+            // widening the law's signature to a type it has no use for.
+            let blendDamping = Float(FlashGuard.blendPhaseDamping(
+                styleA: Int(uniforms.style), styleB: Int(uniforms.styleB),
+                blend: Double(uniforms.blend)))
+            uniforms.fieldPhase += dt * flashHz * blendDamping
+            if uniforms.fieldPhase > 1e6 { uniforms.fieldPhase -= 1e6 }
         }
         // Keep `time` as a free-running clock for the secondary motion in the shader.
         uniforms.time = reduceMotion ? 0 : Float(nowT - startTime)
@@ -1460,7 +1498,8 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
                       float rp4x; float rp4y; float rp4p; float rp4a; float rp4r; float rp4g; float rp4b;
                       float rp5x; float rp5y; float rp5p; float rp5a; float rp5r; float rp5g; float rp5b;
                       float textureAmt; float glitterAmt; float structureAmt;
-                      float dishK; float dishStrength; float dishHex; };
+                      float dishK; float dishStrength; float dishHex;
+                      float fieldPhase; };
 
     // TOUCH RIPPLES — the water feedback drawn IN the field's own pipeline
     // (structural rebuild 2026-07-09; the old CAShapeLayer sandwich over the Metal
@@ -2082,7 +2121,12 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
         // Budgets: `FlashGuardTests.testEveryReachableLookObeysTheThreeHzLaw`.
         float coh = clamp(u.coherence, 0.0, 1.0);
         float density = clamp(u.ringDensity, 4.0, 120.0);
-        float phase = u.pulsePhase * 6.2831853;
+        // #1124 — TWO phases on purpose. `phase` drives the FIELDS and is slowed while two
+        // looks are mixed (their flash counts add in one pixel); `beatPhase` drives the
+        // heartbeat bloom below and is never slowed, because the beat must read at the
+        // body's rate. Identical whenever the slider sits on a single look.
+        float phase = u.fieldPhase * 6.2831853;
+        float beatPhase = u.pulsePhase * 6.2831853;
         float spread = (0.85 + u.breath * 0.35) * clamp(u.spread, 0.4, 1.6);
 
         // BLEND two looks ("überlappend/mischend"): evaluate style A and style B and mix
@@ -2126,7 +2170,7 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
         // 1.06 and has to be counted). ⚠️ Since #1059 that factor is a MAXIMUM rather than a
         // uniform gain — the curve reaches 1.06 only at mid grey — so the product is now an
         // upper bound, which is the safe direction. The number did not move.
-        float beat = 0.5 - 0.5 * cos(phase);            // 0…1 once per heartbeat
+        float beat = 0.5 - 0.5 * cos(beatPhase);        // 0…1 once per heartbeat, undamped
         float restGlow = 0.07 + 0.14 * u.breath;        // breath = resting swell
         float beatGain = 0.80 + \(FlashGuard.bloomBeatGainSwingLiteral) * beat;  // 0.80…1.22
         float bloomEdge = (0.44 + 0.24 * beat) * spread; // radius pulses with the beat
