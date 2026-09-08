@@ -5864,7 +5864,30 @@ struct EchoelStudioView: View {
                             Text(preset.name)
                                 .font(EchoelTheme.font(12))
                                 .foregroundStyle(selected ? EchoelTheme.onPrimary : EchoelTheme.text)
-                                .padding(.horizontal, 12).frame(minHeight: 32)
+                                // 34, the in-panel floor its two neighbouring chip strips
+                                // already cite as law (#617, `touchPatchChip` above). This row
+                                // sat 2 pt under it. ⚠️ THE PRECISE CLAIM, because the
+                                // obvious one is false: two rows in this file are SMALLER
+                                // still (26 and 28) and both are correct — each is a visual
+                                // pill inside a 44 pt `contentShape` target — the 28 pt one
+                                // literally, the 26 pt one through `chipTapTarget` — so
+                                // its `minHeight` is a LOOK. This row had no such wrapper, so
+                                // its `minHeight` WAS the tap target. That is the difference
+                                // that made it a defect, not the number.
+                                // ⛔ The first draft of this comment quoted the grep that
+                                // proved the count and thereby became the only remaining match
+                                // for its own needle — the recipe contradicted the sentence
+                                // beside it, the `EchoelModalBank` trap in CLAUDE.md. And its
+                                // second draft said "the ONLY chip below the floor", which the
+                                // 26 and the 28 refute. Measure by LISTING, then ask what each
+                                // number MEANS.
+                                // ⚠️ The horizontal padding is deliberately left at 12. The
+                                // audit that found this proposed 11 "to match exactly", and
+                                // that half does not hold: 11 and 12 both occur beside a 34
+                                // height in this file, so padding is a look, not the floor.
+                                // Changing it would have been a taste edit smuggled in under
+                                // a tap-target fix.
+                                .padding(.horizontal, 12).frame(minHeight: 34)
                                 .background(RoundedRectangle(cornerRadius: EchoelTheme.radius)
                                     .fill(selected ? EchoelTheme.text : EchoelTheme.fill))
                                 .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)

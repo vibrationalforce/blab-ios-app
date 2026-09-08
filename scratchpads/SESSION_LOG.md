@@ -26929,3 +26929,41 @@ getrieben, **alle grün**. Anspruch 4 ist das Gegengewicht — `visibleWavelengt
 Ablesung „vereinheitlicht", löscht die Zahl, die die Naht überhaupt erklärbar macht.
 Toleranz der Naht bewusst lockerer als der gemessene Abstand (4,23e-7), damit eine anders
 rundende `log2` keine korrekte Konstante rot macht.
+
+## #1144 — Der Preset-Chip war sein eigenes Tap-Ziel und lag unter dem Boden
+
+Letzter Code-Befund des Visual-Deep-Audits („Preset chips sit 2 pt under the in-panel floor
+their two neighbouring strips cite as law"). `frame(minHeight: 32)`, während `touchPatchChip`
+und die Look-Chips daneben 34 lesen und 34 ausdrücklich als Haus-Boden benennen (#617).
+Gehoben auf 34.
+
+⚠️ **Die naheliegende Begründung ist FALSCH, und sie stand zwei Entwürfe lang in meinem
+Kommentar.** Zwei Zeilen derselben Datei sind KLEINER — 26 und 28 — und beide sind richtig:
+jede ist eine optische Pille INNERHALB eines 44-pt-`contentShape`-Ziels (die 28 wörtlich, die
+26 über `chipTapTarget`). Dort ist `minHeight` ein AUSSEHEN. Der Preset-Chip hatte keine
+Hülle, also WAR seine `minHeight` das Tap-Ziel. **Der Defekt war dieser Unterschied, nicht
+die Zahl 32.**
+
+⛔ **Der Kommentar hat sich außerdem zweimal selbst widerlegt, beide Male beim Messen
+gefangen:**
+· Entwurf 1 ZITIERTE das `grep`, das die Zählung bewies — und wurde dadurch der einzige
+  verbliebene Treffer seiner eigenen Nadel. Der Zähler las wieder 1, das Rezept widersprach
+  dem Satz daneben. Exakt die `EchoelModalBank`-Falle aus CLAUDE.md, diesmal in Swift.
+· Entwurf 2 sagte „der EINZIGE Chip unter dem Boden" — die 26 und die 28 widerlegen das.
+**Regel daraus: erst LISTEN, dann fragen, was jede Zahl BEDEUTET.**
+
+⛔ **UND DER STRUKTURELLE WÄCHTER, DEN ICH FAST GESCHRIEBEN HÄTTE, EXISTIERT ABSICHTLICH
+NICHT.** Die verlockende Regel lautet „jede `minHeight` unter 34 muss in einem 44-pt-Ziel
+sitzen". VOR dem Schreiben gemessen: die `chipTapTarget {`-Aufrufstelle der 26-pt-Pille liegt
+**45 Zeilen** über ihrer `minHeight`, mit einem langen Kommentarblock dazwischen. Ein
+Text-Nachbarschafts-Test bräuchte ein Fenster, das später fast alles trifft — also ein
+Wächter, der nicht mehr ehrlich scheitern kann. **Lieber keiner als einer, der später lügt.**
+
+⚠️ Die Padding-Hälfte der Audit-Empfehlung („12 → 11, damit es exakt passt") ist NICHT
+umgesetzt und der Grund steht an der Zeile: 11 und 12 kommen beide neben einer 34er-Höhe vor,
+Padding ist ein Aussehen und kein Boden. Es zu ändern wäre eine Geschmacks-Änderung, die sich
+unter einer Tap-Ziel-Reparatur einschleicht.
+
+Wächter `ThePresetChipMeetsTheInPanelFloorTests`: 2 Ansprüche, 5 Prüfungen, in Python
+getrieben, **alle grün**. Er pinnt die 26 und die 28 mit, damit eine DRITTE kleine Höhe rot
+wird und ein Mensch entscheidet, welcher Sorte sie ist. Er verbietet 44 nicht (#364).
