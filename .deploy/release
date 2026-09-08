@@ -6,6 +6,27 @@ notes: |
   nimmt den ersten Treffer. Deshalb stehen die Vorgänger unten ohne `v`.
   Wächter im blockierenden Bundle: `TheShippedVersionComesFromTheReleaseFileTests` (#635).
 
+  ⭐ ZWEITES GESETZ FÜR DIESE DATEI (#1150). Wer eine Build-Notiz schreibt, hängt ans ENDE
+  die Liste der Prüf-Bitten, die DIESER Build neu beantwortbar macht — und schreibt sie
+  nicht von Hand, sondern druckt sie:
+
+      python3 scripts/founder-verify.py --since <sha des VORIGEN deploy-bumps>
+
+  (den sha liefert `git log --oneline -2 -- .deploy/release`).
+
+  ⚠️ WARUM DAS EIN GESETZ IST UND KEIN TIPP. Die Flagge existiert seit #931 und stand bis
+  heute NUR im Skript selbst: CLAUDE.md nennt das Werkzeug, nicht die Flagge, und an der
+  Stelle, an der eine Sitzung eine Notiz SCHREIBT, zeigte gar nichts darauf. Der Rückstand
+  ist dreistellig; ohne den Filter bekommt der Founder zu jedem Build dieselbe unsortierte
+  Wand und liest sie irgendwann nicht mehr. Die Flagge sieht TEXT, nicht Fähigkeit — eine
+  nur umformulierte Bitte erscheint als „neu", also den Satz lesen statt ihn zu übernehmen
+  (die Ausgabe sagt das auch selbst).
+  ⛔ DER ANKER FÜR DIESE EINFÜGUNG STAND VIERMAL IN DER DATEI — die älteren Build-Notizen
+  weiter unten wiederholen denselben Kopf. Eine Ersetzung ohne Zähl-Prüfung hätte dieses
+  Gesetz in drei ARCHIVIERTE Notizen mitgeschrieben, wo es nichts steuert und beim nächsten
+  Kürzen still verschwindet. Wer hier etwas einfügt, prüft die Trefferzahl zuerst.
+  Wächter: `TheDeployNoteNamesRealDoorsTests`, Anspruch 4.
+
   Der Vorgänger ist 10.79.462.
 
   ── 1. DER BEAMER KONNTE EIN BILD ZEIGEN, DAS ZU SCHNELL BLINKT ──────────

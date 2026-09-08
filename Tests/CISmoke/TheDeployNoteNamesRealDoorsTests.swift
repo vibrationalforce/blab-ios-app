@@ -142,4 +142,23 @@ final class TheDeployNoteNamesRealDoorsTests: XCTestCase {
             while the log was the one thing being waited on.
             """)
     }
+
+    /// 4 — the note tells the next session HOW to list what this build made testable (#1150).
+    ///
+    /// `founder-verify.py --since <sha>` has existed since #931 and lived ONLY inside the
+    /// script. CLAUDE.md names the tool, not the flag, and the place a session actually writes
+    /// a build note pointed at neither. With a three-digit backlog that is the difference
+    /// between a pointed device session and the same unsorted wall every time.
+    ///
+    /// ⛔ POSITIVE SCAN, for the #1148 reason: asserting an instruction is PRESENT has no
+    /// self-referential failure mode, while asserting one is absent does.
+    func testTheBuildNoteSaysHowToListWhatThisBuildMadeTestable() throws {
+        let note = try text(".deploy/release")
+        XCTAssertTrue(note.contains("founder-verify.py --since"), """
+            The build note no longer prints the command that lists the asks this build made \
+            newly testable. Without it the founder gets the whole backlog every round, which \
+            is how a checklist stops being read. If the flag was renamed, rename it here in \
+            the same commit — this file and the note are the only two homes it has.
+            """)
+    }
 }

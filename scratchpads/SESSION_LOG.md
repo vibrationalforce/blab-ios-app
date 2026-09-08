@@ -27224,3 +27224,40 @@ eine Vermutung — auch wenn die Erwartung am Ende zufällig eintrifft.**
 Reihenfolge-Gefahr. Mutanten-Probe ausgeführt: „Still" wieder eingesetzt → `area_of` liefert
 `visual` statt `audio`, der Pin wird also nachweislich rot. `--selftest` grün (0 Probleme),
 Diff über alle 125 Zeilen: **34 Umzüge, alle aus `other`, KEIN verbotener.**
+
+## #1150 — `--since` existierte seit #931 und stand NUR im Skript; die Stelle, an der eine Notiz geschrieben wird, zeigte auf nichts
+
+Gemessen: `git grep -n "\-\-since" CLAUDE.md .claude/` liefert für dieses Werkzeug **nichts**.
+CLAUDE.md nennt `founder-verify.py`, aber nicht seine Flagge; `.deploy/release` — die Datei, in
+der eine Sitzung die Build-Notiz SCHREIBT — nannte weder das eine noch das andere. Eine Fähigkeit,
+die genau dort gebraucht wird, wo niemand von ihr erfährt.
+
+**Folge, und sie ist nicht kosmetisch:** der Rückstand ist dreistellig. Ohne Filter bekommt der
+Founder zu jedem Build dieselbe unsortierte Wand — und liest sie irgendwann nicht mehr. Mit
+Filter sind es für den letzten Deploy **zwei** Zeilen (die zwei umgeschriebenen Donut-Bitten aus
+#1145), beide im VISUAL-Eimer.
+
+**Geliefert:** ein zweites Gesetz im Kopf von `.deploy/release`, direkt neben dem
+Versionsnummer-Gesetz — wer eine Notiz schreibt, DRUCKT die neu beantwortbaren Bitten mit
+`python3 scripts/founder-verify.py --since <sha des vorigen Bumps>` und hängt sie ans Ende.
+Mitsamt der Warnung des Werkzeugs: es sieht TEXT, nicht Fähigkeit; eine nur umformulierte Bitte
+erscheint als „neu".
+
+⛔ **DER ANKER STAND VIERMAL IN DER DATEI, und das hätte das Gesetz still ruiniert.** Die älteren
+Build-Notizen weiter unten wiederholen denselben Kopfblock. Meine erste Ersetzung lief ohne
+Zähl-Prüfung — die Assertion wurde rot mit „4", nicht der Code. Ohne sie stünde dieses Gesetz in
+drei ARCHIVIERTEN Notizen, wo es nichts steuert und beim nächsten Kürzen mitverschwindet. Die
+Warnung steht jetzt an der Einfügestelle selbst. **Gesetz: in einer Datei, die ihre eigene
+Vorgeschichte enthält, ist jede Textersetzung erst nach einer Trefferzählung sicher.**
+
+⚠️ **KORREKTUR AN MEINEM EIGENEN VORIGEN STATUS-DELTA.** Ich meldete „Gates 719c4607 +
+37027993: Xcode Compile Check grün". Für `37027993` stimmt das. Für **`719c4607` war der Lauf
+CANCELLED**, nicht `success` — vom nächsten Push überholt. Ein abgebrochener Lauf ist kein
+Bestanden, und ich habe ihn als eines gemeldet. **Die Kompilier-TATSACHE hält trotzdem**, über
+ein anderes Gate: `Build for Testing` war auf demselben sha `success`, und das baut `Sources/`
+UND die Testbündel, also strikt mehr. Der Satz war falsch, der Schluss nicht — und genau diese
+Unterscheidung ist der Grund, warum die Korrektur hier steht statt still zu verschwinden.
+
+Wächter: vierter Anspruch in `TheDeployNoteNamesRealDoorsTests` (positiver Scan, #1148-Grund).
+5/5 Prüfungen in Python getrieben, Mutanten-Probe schlägt korrekt fehl, Klammern ausgeglichen,
+Versionsregel unberührt (`v10.79.463` bleibt der erste Treffer im File).
