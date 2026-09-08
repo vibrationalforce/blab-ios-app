@@ -25831,3 +25831,21 @@ rendert", im iPad-Reflow-Absatz). Alle mit ⛔ auf die heutigen Heimaten gezogen
 - **Lehre, verschärft:** #1104–#1106 fanden Prosa vom Vortag; DIESE Stellen sind einen Monat alt.
   Ein Löschen ohne NAME-Grep altert nicht ein bisschen, es altert, bis jemand sucht. Die vier
   Sweeps zusammen: 28 Stellen in 13 Dateien (Sources + Tests + CLAUDE.md).
+
+## #1108 — derselbe NAME-Grep über `Tests/`: drei Wächter-Prosa-Stellen, eine davon die Doc eines Wächters, dessen Beispiel #1107 gerade umbenannt hatte
+
+**Messung (Zyklus 03:58Z):** `git grep -E` über `Tests/` nach `TransportBar`, `ArrangeTimelineView`,
+`visualVJOverlay`, `PatchEditorView`, `ChannelRackView`, Rücknahme-Zeilen ausgeschlossen. Alles
+Geschichte bis auf drei Stellen: `CopyNamesTheLiveControlTests` erklärte sein Trailing-Comment-
+Stripping mit den zwei `// chrome mirror (TransportBar pulse button)`-Zeilen („They deserve
+renaming") — #1107 hat sie umbenannt, der Wächter bleibt grün (er stript, statt zu verbieten),
+die Doc erzählt jetzt Vergangenheit. `WeatherIsAMoodRubricTests` nannte in einer Fehlermeldung
+„the `visualVJOverlay` defect (open task #270)" — #270 ist seit #747 zu, das Overlay seit #1069 weg.
+`SectionHeadingIsOneTreatmentTests` sagte „Two is today's count only because `visualVJOverlay`
+… is one of them" — gemessen ist der Count EINS (`visualPresetRow` einmal montiert). Alle drei
+Prosa/Fehlermeldung, kein Urteil ändert sich (der letzte Wächter pinnt bewusst KEINE Zahl, genau
+deshalb überlebte er #1069 grün). `PatchEditorView` in `SoundPanelPresetBarTests` ist ein
+ABWESENHEITS-Pin (Datei darf nicht zurückkommen) — korrekt.
+- Vier Sweeps + dieser: 31 Stellen in 16 Dateien. Sources, Tests, CLAUDE.md und die nutzer-
+  sichtbare Kopie sind für diese fünf Namen jetzt gegrept; `docs/dev/*.md` bewusst nicht (datierte
+  Berichte, kein Präsens-Anspruch).

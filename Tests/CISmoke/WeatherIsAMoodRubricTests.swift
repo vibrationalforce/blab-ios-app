@@ -246,8 +246,8 @@ final class WeatherIsAMoodRubricTests: XCTestCase {
         XCTAssertFalse(row.contains(where: { $0.contains("weatherMixGroup(\"Image\"") }), """
             #359 step 2: the Image mixers are back in `weatherRow`. They belong in \
             `visualPanel` — they tint the picture, and Mood shows none of it. Two surfaces \
-            writing the same @AppStorage weather keys is the `visualVJOverlay` defect (open \
-            task #270) reproduced on a third feature.
+            writing the same @AppStorage weather keys is the old `visualVJOverlay` defect (task \
+            #270; that overlay went with the cover in #1069 — #1108) reproduced on a third feature.
             """)
         XCTAssertFalse(row.contains(where: { $0.contains("AdaptiveCardGrid") }), """
             #359 step 2: `weatherRow` has an `AdaptiveCardGrid` again. A grid arranges CARDS \

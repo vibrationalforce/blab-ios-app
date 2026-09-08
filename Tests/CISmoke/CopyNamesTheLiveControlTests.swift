@@ -45,12 +45,14 @@ final class CopyNamesTheLiveControlTests: XCTestCase {
     /// people actually try first, and about which control is the one start.
     ///
     /// ⚠️ SCOPED TO CODE, NOT TO COMMENTS, and the discrimination is load-bearing rather than
-    /// decorative. Two live code lines in `EchoelStudioView` carry `// chrome mirror
+    /// decorative. Two live code lines in `EchoelStudioView` carried `// chrome mirror
     /// (TransportBar pulse button)` as a TRAILING comment, which a whole-line filter does not
-    /// remove — a bare phrase ban would redden the only blocking bundle over two stale
+    /// remove — a bare phrase ban would have reddened the only blocking bundle over two stale
     /// breadcrumbs. (Stale, not accurate: `WorkspaceView` records that the transport pulse
-    /// button was DELETED on 2026-07-15, not moved. They deserve renaming; a copy guard is the
-    /// wrong tool to force it, which is exactly why they are cut out here instead of banned.)
+    /// button was DELETED on 2026-07-15, not moved. They deserved renaming; a copy guard is the
+    /// wrong tool to force it, which is exactly why trailing comments are cut out here instead
+    /// of banned. ⛔ #1107 renamed both breadcrumbs to `PlaybackToggleButton`; the example is
+    /// history since #1108, the stripping stays — the next trailing comment will not ask first.)
     ///
     /// ⚠️ AND IT MATCHES THE WHOLE FILE, NOT A LINE. The first version required the phrase and a
     /// `"` on the SAME raw line — so a re-added sentence wrapped across two lines, or written as

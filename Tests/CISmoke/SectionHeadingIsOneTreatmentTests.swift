@@ -231,9 +231,11 @@ final class SectionHeadingIsOneTreatmentTests: XCTestCase {
     func testThePresetStripSitsWithTheFieldsItWrites() throws {
         let studio = try codeLines(Self.studio)
         let mounts = studio.indices.filter { studio[$0].trimmingCharacters(in: .whitespaces) == "visualPresetRow" }
-        // ⛔ NOT `XCTAssertEqual(…, 2)`, and the first draft was. Two is today's count only
-        // because `visualVJOverlay` — the doorless second copy that open task #270 exists to
-        // DELETE — is one of them. Pinning it would turn a correct removal into a red
+        // ⛔ NOT `XCTAssertEqual(…, 2)`, and the first draft was. Two was the count while
+        // `visualVJOverlay` — the doorless second copy that open task #270 existed to
+        // DELETE — was one of them; #1069 deleted it, and the count is ONE today (measured
+        // #1108: `grep -cE '^\s*visualPresetRow\s*$'` on code lines → 1). A pin at 2 would have
+        // turned that correct removal into a red
         // blocking gate, which is the `#173`/`#165` shape this repo has already paid for
         // twice: a guard that outlives the thing it describes and then argues with a founder
         // decision. The invariant that actually matters is carried by `strays` below and
