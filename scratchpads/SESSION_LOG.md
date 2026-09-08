@@ -27132,3 +27132,50 @@ Mutanten-Probe auf 3a schlägt korrekt fehl. **Keine ZAHL gepinnt** (#818): der 
 vier auf fünf, als der Dish kam, und kann wieder wandern — gepinnt ist die STRUKTUR, nicht ihre
 Größe. Verbietet nichts (#364): sollte jemand das Enum verdrahten, wird Anspruch 1 rot und sagt
 in seiner Meldung, die Rücknahme sei dann mitzuziehen — nicht die Verdrahtung zurückzunehmen.
+
+## #1148 — #1130 hat den Satz im TEST repariert und die QUELLE stehen lassen (#456 in einem Dateipaar)
+
+Beim #1146-Messen aufgefallen, danach einzeln nachgemessen. `FlashGuard.blendPhaseDamping`
+trägt einen Absatz, der sich selbst „checked arithmetic, not a hope" nennt, und sein Rechenbeispiel
+lautete: *„Aurora's 1.20 × 2.5 is exactly 3.0 in IEEE 754."*
+
+**#1127 hat genau diese Zeile sechs Scheiben früher außer Kraft gesetzt** (Aurora 1.20 → 0.70,
+also 1.75 Hz statt 3.00). **#1130 hat den Fehler schon einmal gefunden — aber in der ANDEREN
+Heimat**, der Fehlermeldung von `EveryLookHasAFlashBudgetTests`, und dort korrekt auf
+„binding row (Rings, 2.50 Hz)" umgeschrieben. Die Quelle blieb stehen. Das ist #456 innerhalb
+eines einzigen Dateipaares: **Prosa zieht in JEDER Heimat mit, nicht nur in der, die man gerade
+bearbeitet.**
+
+**Neu berechnet aus der ausgelieferten Tabelle** (Multiplikator × `maxPulseRateHz` 2,5, bei
+`folds` verdoppelt):
+
+| Look | Hz |
+|---|---|
+| **Rings** | **2,50** ← bindend |
+| Aurora | 1,75 |
+| Water | 1,70 |
+| Depth | 1,50 |
+| Dish | 1,00 |
+
+⭐ **Die SCHLUSSFOLGERUNG war nie falsch — sie ist heute stärker**, weil die bindende Zeile 0,50 Hz
+UNTER der Decke sitzt statt exakt darauf. Falsch war nur das Beispiel. Und genau das ist der
+Schaden: wer die „geprüfte Arithmetik" nachprüft, findet 1,75 statt 3,0 und kann nicht
+unterscheiden, ob der Absatz veraltet oder der Code kaputt ist. Der Randfall selbst (eine Summe
+GENAU auf der Decke muss die literale 1 liefern — dafür steht dort `>` und nicht `>=`) bleibt als
+REGEL stehen, nur ohne die zurückgezogene Zeile als Zeugen.
+
+**Wächter: kein neuer.** Ein vierter Anspruch in `EveryLookHasAFlashBudgetTests` — das Gesetz hat
+schon eine Heimat (#416). Er prüft drei Dinge: beide Heimaten tragen DIESELBE Formulierung, und
+die Formulierung ist WAHR (die lauteste Zeile wird aus der Tabelle neu abgeleitet, nicht aus
+einem der beiden Sätze geglaubt).
+
+⛔ **Bewusst ein POSITIVER Scan.** Die naheliegende Form — „das zurückgezogene Beispiel ist
+ABWESEND" — ist die selbstbezügliche Falle, die in diesem Repo jetzt dreimal zugeschnappt ist
+(#1142, #1144, #1147): die Rücknahme muss den gestrichenen Satz benennen und wird dadurch sein
+einziger Treffer. Zwei Heimaten auf dieselbe WAHRE Aussage zu prüfen hat diesen Fehlermodus nicht.
+**Das ist die erste Scheibe, die die Falle vermeidet, statt sie zu überleben.**
+
+⚠️ Nachlese zur Messung selbst: meine Python-Probe hatte im ersten Lauf `mult.get(x, float(x))` —
+Python wertet das Default-Argument EAGER aus, also warf sie auf einem benannten Multiplikator.
+Kein Repo-Befund, aber der Grund, warum die erste Ausgabe rot war. 4/4 nach der Korrektur;
+Klammern in beiden Dateien ausgeglichen.

@@ -121,4 +121,53 @@ final class EveryLookHasAFlashBudgetTests: XCTestCase {
                 """)
         }
     }
+
+    /// 4 — the "no headroom" argument reads IDENTICALLY in both of its homes (#1148).
+    ///
+    /// #1130 corrected this sentence in the failure message above, where it had named Aurora
+    /// at "exactly 3.00" after #1127 retired that row. It left the SAME stale example standing
+    /// in `FlashGuard.blendPhaseDamping`'s own doc — the copy a reader of the algorithm meets
+    /// first, and the one paragraph in this system that calls itself checked arithmetic. That
+    /// is #456 inside one file pair: prose moves in EVERY home, not only the one being edited.
+    ///
+    /// ⛔ THIS IS A POSITIVE SCAN ON PURPOSE. The obvious form — assert the retired example is
+    /// ABSENT from the source — is the self-referential trap that has now fired three times in
+    /// this repo (#1142, #1144, #1147): the retraction must name the struck sentence, so it
+    /// becomes the only remaining match and the check reads red on a correct tree. Asserting
+    /// that both homes say the SAME true thing has no such failure mode.
+    func testTheNoHeadroomArgumentReadsTheSameInBothHomes() throws {
+        let phrase = "binding row (Rings, 2.50 Hz)"
+        let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+            .deletingLastPathComponent().deletingLastPathComponent()
+        guard FileManager.default.fileExists(atPath: root.appendingPathComponent("Sources").path)
+        else { throw XCTSkip("source tree not present under \(root.path)") }
+
+        let sourcePath = root.appendingPathComponent("Sources/Echoelmusic/Core/FlashGuard.swift")
+        guard let source = try? String(contentsOf: sourcePath, encoding: .utf8) else {
+            return XCTFail("ANCHOR MISSING: Core/FlashGuard.swift could not be read — a missing "
+                           + "anchor is a finding, not a pass.")
+        }
+        XCTAssertTrue(source.contains(phrase), """
+            FlashGuard.blendPhaseDamping's doc no longer names the binding row in the agreed \
+            words "\(phrase)". If a retune moved it, say so in BOTH homes in the same commit: \
+            this file's ceiling message and that doc. A retune that touches only one leaves the \
+            other as a worked example of a row that no longer exists — exactly what #1130 fixed \
+            here and #1148 had to fix there.
+            """)
+
+        let selfText = (try? String(contentsOf: URL(fileURLWithPath: #filePath),
+                                    encoding: .utf8)) ?? ""
+        XCTAssertTrue(selfText.contains(phrase),
+                      "This file stopped naming the binding row in the agreed words. The two "
+                      + "homes must read identically or the pairing is not checkable.")
+
+        // The phrase must still be TRUE, not merely present in both places: re-derive the
+        // loudest single row from the shipped table rather than trusting either sentence.
+        let loudest = FlashGuard.fieldBudgets.max(by: { $0.effectiveHz < $1.effectiveHz })
+        XCTAssertEqual(loudest?.name, "Rings",
+                       "The binding row is now \(loudest?.name ?? "none"), not Rings. Both "
+                       + "homes name Rings and both are now wrong — move them together.")
+        XCTAssertEqual(loudest?.effectiveHz ?? 0, 2.5, accuracy: 0.0001,
+                       "The binding row's rate moved. Both homes quote 2.50 Hz; update both.")
+    }
 }

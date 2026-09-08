@@ -380,8 +380,26 @@ public enum FlashGuard {
     ///   · damping = ceiling / union, capped at 1.
     ///
     /// ⚠️ EXACTLY 1.0 AT EITHER END, AND THAT IS CHECKED ARITHMETIC, NOT A HOPE. At `t = 0`,
-    /// `w = 0` and `union = max(hzA, hzB)`; Aurora's 1.20 × 2.5 is exactly 3.0 in IEEE 754,
+    /// `w = 0` and `union = max(hzA, hzB)`; the loudest single row today is Rings at
+    /// **2.50 Hz** (0.5 × 2.5, doubled by its fold), which is strictly under the 3.0 ceiling,
     /// so `union > maxFlashHz` is false and the factor is the literal 1. A caller multiplying
+    ///
+    /// ⛔ THIS PROOF NAMED "Aurora's 1.20 × 2.5 is exactly 3.0 in IEEE 754" UNTIL #1148, AND
+    /// #1127 HAD RETIRED THAT ROW SIX SLICES EARLIER (1.20 → 0.70, i.e. 1.75 Hz). The
+    /// CONCLUSION never wavered — it is stronger now, because the binding row sits 0.50 Hz
+    /// UNDER the ceiling instead of exactly on it — but the worked example named a row that no
+    /// longer exists, in the one paragraph that calls itself checked arithmetic. A reader who
+    /// did the check would find 1.75, not 3.0, and could not tell whether the paragraph was
+    /// stale or the code was wrong.
+    /// ⚠️ #1130 ALREADY FIXED THIS EXACT SENTENCE IN ITS OTHER HOME — the failure message of
+    /// `EveryLookHasAFlashBudgetTests` — and left this one. That is #456 in one file pair:
+    /// prose moves in EVERY home, not only the one being edited. The test now says "the
+    /// binding row (Rings, 2.50 Hz)"; this line says the same thing, deliberately in the same
+    /// words, so a future retune goes red in one place and reads identically in both.
+    /// ⚠️ THE BOUNDARY CASE THE OLD EXAMPLE ILLUSTRATED IS STILL THE RULE, and it is what
+    /// `>` rather than `>=` buys: a union that lands EXACTLY on `maxFlashHz` must return the
+    /// literal 1, not a 0.999… that would make a non-blending caller's output differ in the
+    /// last bit. No shipped row reaches that boundary today; a future one might.
     /// a phase increment by 1.0 gets a bit-identical result, so **nothing changes for anyone
     /// who does not blend** — which is what makes this safe to ship without a device run.
     ///
