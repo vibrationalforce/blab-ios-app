@@ -165,6 +165,37 @@ private struct ExternalStageView: View {
     @AppStorage(StudioDefaultKeys.visualGlitter.key) private var glitter = StudioDefaultKeys.visualGlitter.value
     @AppStorage(StudioDefaultKeys.visualStructure.key) private var structure = StudioDefaultKeys.visualStructure.value
 
+    // MARK: - Accessibility (#1118)
+
+    /// The OS "Reduce Motion" setting, as SwiftUI sees it here.
+    ///
+    /// ⛔ THE BEAMER IGNORED THIS SETTING ENTIRELY UNTIL #1118, AND IT IS THE BIGGEST
+    /// SURFACE THE APP DRIVES. `FloatingVisualWindow` has read it since it was written and
+    /// passes it to `MetalBioView`; this scene never mentioned the word. So a person who
+    /// turns Reduce Motion on got a still picture on a 6-inch phone and a full-motion one on
+    /// a projector filling the room — the wrong way round, and the site says plainly that the
+    /// visual honours the setting (`architecture.html`, `faq.html`). Nothing here was a
+    /// deliberate exception; the argument in `MetalBioView` about "the ONE mount that omits
+    /// it" is about `playGridKey`, a different parameter, and was mistaken for cover.
+    @Environment(\.accessibilityReduceMotion) private var envReduceMotion
+
+    /// The same setting read straight from UIKit, OR-ed with the environment value below.
+    ///
+    /// ⚠️ WHY BOTH, and it is not belt-and-braces for its own sake. This hierarchy is built
+    /// by UIKit on a second `UIWindow` (see `weathered`'s note), and this file's own comment
+    /// warns that it "inherits no `@Environment`". That warning is about the `.environment(…)`
+    /// injections the phone's hierarchy makes — accessibility values DO arrive from the
+    /// host's trait collection — but the distinction is subtle enough that betting an
+    /// accessibility guarantee on it is the wrong bet. The static read is authoritative the
+    /// moment the scene is built; the environment value is the one that updates live if the
+    /// user flips the switch mid-show. OR is the safe direction: either source saying
+    /// "reduce" reduces.
+    /// (No `#if canImport(UIKit)` here: this whole file already sits inside one, and a
+    /// nested guard would read as if UIKit were optional at this point. It is not.)
+    private var reduceMotion: Bool {
+        envReduceMotion || UIAccessibility.isReduceMotionEnabled
+    }
+
     // #1073 — the weather half, so the beamer draws the phone's picture and not a raw one.
     // ⚠️ EVERY DEFAULT HERE IS THE SAME EXPRESSION `FloatingVisualWindow` uses, not a copy of
     // its VALUE. Writing `0.5` would have re-created the divergence this slice repairs, one
@@ -215,7 +246,17 @@ private struct ExternalStageView: View {
                 // capture over here is not a one-liner — `AVAssetWriter` takes its
                 // dimensions from the first frame, so a projector plugged in mid-recording
                 // would push landscape frames into a portrait file. Own slice.
+                // #1118 — `reduceMotion` sits SECOND because `MetalBioView` declares it
+                // second and Swift's memberwise init follows declaration order (the same law
+                // that struct's own "DECLARED LAST ON PURPOSE" note is about). The projector
+                // now obeys the accessibility setting the phone has always obeyed;
+                // `MetalBioView` turns it into a STILL frame (pulseHz 0), which on a stage is
+                // a real consequence and the correct one — the person who set the switch is
+                // the person driving the show. NEEDS-FOUNDER-VERIFY: if a performance must
+                // keep moving with the switch on, that is a per-surface OVERRIDE to design,
+                // not a reason to go back to ignoring the setting.
                 MetalBioView(capturesVideo: false,
+                             reduceMotion: reduceMotion,
                              autoAttuned: autoMode,
                              intensity: Float(wx.intensity),
                              ringDensity: Float(detail),

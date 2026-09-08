@@ -26139,3 +26139,44 @@ zeichnet. Er verbietet das Ändern nicht, er verbietet einen Namen, der lügt.
 
 NEEDS-FOUNDER-VERIFY: liest das Netz wie Licht auf einem Beckenboden, und zieht eine Oktave
 höher es sichtbar enger?
+
+## #1118 — Der Beamer hat „Bewegung reduzieren" komplett ignoriert (2026-09-08)
+
+Befund aus dem Visual-Deep-Audit, selbst nachgemessen:
+`grep -n "reduceMotion" Sources/Echoelmusic/Studio/ExternalDisplayScene.swift` → **nichts**.
+`FloatingVisualWindow` liest die Einstellung seit jeher (`@Environment(\.accessibilityReduceMotion)`,
+Zeile 99) und reicht sie an `MetalBioView`; die externe Bühne nannte das Wort nie.
+
+**Die Richtung ist das Schlimme:** wer die Systemeinstellung anschaltet, bekam ein STEHENDES
+Bild auf einem 15-cm-Telefon und ein VOLL BEWEGTES auf einem Projektor, der einen Raum füllt.
+Genau verkehrt herum — und die Website sagt an zwei Stellen, dass das Visual die Einstellung
+beachtet (`architecture.html`, `faq.html`).
+
+**Warum es so lange überlebte:** `MetalBioView.reduceMotion` hat einen Default `= false`. Eine
+Montagestelle, die das Argument weglässt, kompiliert einwandfrei und rendert volle Bewegung —
+es gibt keinen Compiler-Fehler, auf den man warten könnte. Dazu steht im Kopf desselben
+`struct` ein Absatz über „die EINE Montagestelle, die es weglässt" — der gilt `playGridKey`,
+einem anderen Parameter, liest sich beim Überfliegen aber wie eine Deckung für diesen.
+
+**Zwei Quellen, ODER-verknüpft.** Diese Hierarchie wird von UIKit auf einem zweiten `UIWindow`
+gebaut, und der Dateikopf warnt selbst, sie erbe „kein `@Environment`". Diese Warnung meint die
+`.environment(…)`-Injektionen des Telefons — Accessibility-Werte kommen sehr wohl über die
+Trait-Collection —, aber der Unterschied ist fein genug, dass man eine Barrierefreiheits-Zusage
+nicht darauf wetten sollte. Also: statischer `UIAccessibility.isReduceMotionEnabled` (autoritativ
+beim Bauen) ODER der Environment-Wert (aktualisiert live). ODER ist die sichere Richtung.
+
+**Beim Schreiben gefangen, nicht erst von CI:** ich hatte `reduceMotion:` zuerst ans ENDE der
+Argumentliste gehängt. `MetalBioView` deklariert es als ZWEITES, und Swifts memberwise init
+folgt der Deklarationsreihenfolge — genau das Gesetz, über das der `struct` selbst einen
+„DECLARED LAST ON PURPOSE"-Absatz führt. Vor dem Push durch Lesen der Reihenfolge korrigiert.
+
+Wächter: `Tests/CISmoke/EveryVisualSurfaceObeysReduceMotionTests.swift`, zwei Ansprüche,
+transkribiert GRÜN (genau ZWEI Montagestellen gefunden, beide grün). Anspruch 1 verlangt, dass
+JEDE `MetalBioView(`-Stelle das Argument übergibt — nicht, WAS sie übergibt: ein
+Pro-Fläche-Override kann eine echte Entscheidung sein, und ein Wächter, der sie verböte, wäre
+der #364-Fehler. Anspruch 2 ist das Gegengewicht und sagt in seiner Fehlermeldung, dass man
+diese Datei LÖSCHEN soll, falls jemand den Parameter verpflichtend macht — dann macht der
+Compiler die Arbeit besser.
+
+NEEDS-FOUNDER-VERIFY: muss eine Aufführung mit eingeschaltetem Schalter trotzdem laufen? Dann
+ist das ein Pro-Fläche-Override zum Entwerfen, kein Grund, die Einstellung wieder zu ignorieren.
