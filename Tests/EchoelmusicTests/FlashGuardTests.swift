@@ -147,22 +147,30 @@ final class FlashGuardTests: XCTestCase {
     ///    lives in `FlashGuard.fieldBudgets`, #1123 — that changes WHERE a drift is
     ///    visible, not WHETHER it can happen.)
     /// 2. The multipliers are the FASTEST term in each function, which for Water is a
-    ///    PRODUCT of two phase-bearing factors (sum sideband f₁+f₂), for Aurora is an
-    ///    `abs()` FOLD of a phase-bearing wave, and for Depth is a plain rate whose
+    ///    PRODUCT of two phase-bearing factors (sum sideband f₁+f₂), for Aurora is the
+    ///    drift SWEEP (its peak crosses a fixed pixel twice per cycle — ⛔ this line said
+    ///    "an `abs()` FOLD" until #1125 replaced that band with a Chapman profile and the
+    ///    count did NOT move, which is how the wrong cause was found), and for Depth is a
+    ///    plain rate whose
     ///    `folds` flag carries the non-monotone illumination — not a plain "the style's
     ///    own multiplier". (⛔ This line named Depth alongside Water until #1117 replaced
     ///    that function; the sine product it referred to is gone.)
     /// 3. It does NOT cover additive superposition (the heartbeat bloom on top of the
-    ///    field). That still needs per-pixel photometry. ⭐ The A↔B BLEND UNION was in this
-    ///    sentence until #1124 closed it: `FlashGuard.blendPhaseDamping` damps the field
-    ///    phase while two looks coexist, swept over every pair by
-    ///    `TheBlendUnionStaysUnderTheCeilingTests` in the BLOCKING bundle. The bloom half
-    ///    remains open and is the harder one — it superposes on the field at a DIFFERENT
-    ///    rate, so no single phase factor can bound it.
+    ///    field) — but ⛔ "the bloom half remains OPEN and is the harder one" stood here
+    ///    and OVERSTATED the gap, measured 2026-09-08. The bloom cannot be bounded by a
+    ///    phase factor (it runs at the body's rate and must, or the heart reads slower than
+    ///    it beats), so it is bounded a different way: its own brightness swing is held
+    ///    BELOW the WCAG general-flash threshold, `swing × restGlowMax × (1 − ambient) ×
+    ///    filmicMaxSlope` = 0.42 × 0.21 × 0.94 × 1.06 = 0.088 < 0.10, so its transitions do
+    ///    not qualify as flashes and only the field's rate counts. What is genuinely absent
+    ///    is per-pixel photometry CONFIRMING that on a device — an unmeasured argument, not
+    ///    an unhandled case. ⭐ The A↔B BLEND UNION was in this sentence until #1124 closed
+    ///    it: `FlashGuard.blendPhaseDamping` damps the field phase while two looks coexist,
+    ///    swept over every pair by `TheBlendUnionStaysUnderTheCeilingTests` (BLOCKING).
     func testEveryReachableLookObeysTheThreeHzLaw() {
         // READ the ceiling, never re-type it: this line used to be `let maxPhaseRate = 2.5`
         // with a comment pointing at MetalBioView, so raising the renderer's cap left the
-        // whole proof below green while Aurora (0 margin, see below) went to 3.6 Hz.
+        // whole proof below green while the tightest look silently went over the WCAG law.
         let maxPhaseRate = FlashGuard.maxPulseRateHz
         // ⛔ THE TABLE ITSELF MOVED TO `FlashGuard.fieldBudgets` (#1123). It used to be a
         // literal array RIGHT HERE, in the suite no gate compiles (#208) — so the numbers
@@ -185,27 +193,30 @@ final class FlashGuardTests: XCTestCase {
     /// The app ceiling is what makes the table above pass, so pin the RELATIONSHIP rather
     /// than trusting a future tuning pass to re-derive four look budgets by hand.
     ///
-    /// Aurora is the binding constraint: 1.20 × the phase rate, no fold. At 2.5 Hz that is
-    /// exactly 3.00 Hz — dead on `maxFlashHz` with zero margin. So the app ceiling is not a
-    /// free parameter: any increase is an immediate WCAG 2.3.1 violation on a look that is
-    /// reachable today, and this test is what says so instead of a comment nobody reads.
+    /// ⛔ #1127 — THIS DOC NAMED AURORA AS "the binding constraint: 1.20 × the phase rate",
+    /// and the test hard-coded that 1.20 as a literal. Both went stale the moment Aurora's
+    /// swell moved off the clock onto the real breath signal (1.20 → 0.70, 3.00 → 1.75 Hz).
+    /// The binding row is now RINGS at 2.50 Hz. Rather than substitute one look's name for
+    /// another — which would go stale again on the next tuning pass — the test now DERIVES
+    /// the worst row from the shipped table. A hard-coded copy of a law's number is the
+    /// exact defect #1123 moved this table into `FlashGuard` to end, and it survived here.
     func testAppPulseCeiling_isWhatKeepsTheWorstLookLegal() {
         XCTAssertLessThanOrEqual(FlashGuard.maxPulseRateHz, FlashGuard.maxFlashHz,
                                  "the app ceiling can never exceed the WCAG law it serves")
-        let auroraMultiplier = 1.20   // fieldAurora: 0.70 curtain + 0.50 breathe sideband
-        let aurora = FlashGuard.effectiveFieldHz(phaseRateHz: FlashGuard.maxPulseRateHz,
-                                                 phaseMultiplier: auroraMultiplier,
-                                                 folds: false)
-        XCTAssertLessThanOrEqual(aurora, FlashGuard.maxFlashHz,
-                                 "Aurora at the app ceiling flashes at \(aurora) Hz")
-        // NO equality assertion on the zero margin. The first version had one, to make
+        guard let worst = FlashGuard.fieldBudgets.max(by: { $0.effectiveHz < $1.effectiveHz }) else {
+            return XCTFail("the flash budget table is empty — nothing was checked")
+        }
+        XCTAssertLessThanOrEqual(worst.effectiveHz, FlashGuard.maxFlashHz,
+                                 "\(worst.name) at the app ceiling flashes at \(worst.effectiveHz) Hz")
+        // NO equality assertion on the margin. The first version had one, to make
         // raising the ceiling "fail loudly here" — but the `<=` above already does exactly
-        // that (at a 3.0 ceiling Aurora is 3.6 and goes red with its own message), so the
+        // that (at a 3.0 ceiling the worst row reaches the limit and goes red), so the
         // equality added no coverage while failing on changes that make the app SAFER:
-        // tightening the ceiling to 2.0, or calming Aurora's shader, both leave `<=` green
+        // tightening the ceiling to 2.0, or calming the worst shader, both leave `<=` green
         // and break equality. A safety guard that goes red when the margin GROWS teaches
-        // people to edit the guard. The zero-margin fact lives in `maxPulseRateHz`'s doc
-        // block, which is where someone changing the ceiling will actually read it.
+        // people to edit the guard. Which row is tightest — Rings since #1127, Aurora before
+        // it — lives in `maxPulseRateHz`'s doc block, which is where someone changing the
+        // ceiling will actually read it.
     }
 
     /// Retired-but-compiled styles are NOT in `LookBlendMap.library`, and one of them

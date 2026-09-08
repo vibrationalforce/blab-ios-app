@@ -9,9 +9,15 @@
 // It is not theoretical. `mix(fieldA, fieldB, t)` at an intermediate `t` puts BOTH
 // oscillations into one pixel's luminance, so that pixel sees the UNION of the two flash
 // counts — the identical reasoning the shader already applies to the heartbeat bloom
-// superposed on the field. And Aurora alone is EXACTLY 3.00 Hz with zero margin, sitting
-// inside `LookBlendMap.defaultSequence`. Water↔Aurora at mid-slider is 4.70 Hz by that
-// arithmetic: an ordinary drag of the shipped look slider, over the epilepsy limit.
+// superposed on the field. When this file was written Aurora alone was EXACTLY 3.00 Hz with
+// zero margin, sitting inside `LookBlendMap.defaultSequence`, and Water↔Aurora at mid-slider
+// came to 4.70 Hz: an ordinary drag of the shipped look slider, over the epilepsy limit.
+//
+// ⚠️ #1127 dropped Aurora to 1.75 Hz, so that pair is now 3.45 Hz — STILL over, and this
+// damping is still load-bearing. The worst pair became Rings with itself (5.00 Hz, damping
+// 0.600) where it was Aurora with itself (6.00, 0.500), so blends are damped LESS than
+// before. None of the claims below name a look: they sweep the whole library, which is why
+// the change of worst pair did not need a line here to stay true.
 //
 // #1124's fix damps the FIELD phase rate — not the heartbeat bloom, which must stay on the
 // body's rate — and only while two looks actually coexist.
@@ -128,14 +134,28 @@ final class TheBlendUnionStaysUnderTheCeilingTests: XCTestCase {
         let unknown = 4
         XCTAssertNil(FlashGuard.fieldBudget(forStyle: unknown),
                      "style \(unknown) gained a budget row — pick another unbudgeted style for this claim")
-        // Blended with Aurora (3.00) it must be treated as 3.00 too, so the mid-blend union is
-        // 6.00 and the damping is 0.5 — never 1.
+        guard let aurora = FlashGuard.fieldBudget(forStyle: 5) else {
+            return XCTFail("Aurora lost its row; this claim needs a budgeted partner")
+        }
+        // ⛔ #1127 — THIS CLAIM PINNED `damping == 0.5` AS A LITERAL AND WENT RED THE MOMENT
+        // AURORA'S ROW MOVED (3.00 → 1.75 Hz). The 0.5 was never a law: it was
+        // 3.0 / (3.0 + 3.0), true only while Aurora happened to equal the ceiling. The point
+        // of the claim — `nil` costs the WORST case — is unchanged, so it is now DERIVED from
+        // the two rows it depends on. A counterweight that has to be re-typed whenever an
+        // unrelated look gets safer is a guard that teaches people to edit guards (#364).
+        let expected = FlashGuard.maxFlashHz / (FlashGuard.maxFlashHz + aurora.effectiveHz)
         let damping = FlashGuard.blendPhaseDamping(styleA: unknown, styleB: 5, blend: 0.5)
-        XCTAssertEqual(damping, 0.5, accuracy: 1e-12, """
-            An unbudgeted style blended with Aurora produced damping \(damping). `nil` from \
-            `fieldBudget(forStyle:)` means UNKNOWN, not FREE: a retired look has no row \
-            because nobody re-derived it, not because it is calm. Treating it as 0 Hz would \
-            make the one case nobody has measured the one case that is never damped.
+        XCTAssertEqual(damping, expected, accuracy: 1e-12, """
+            An unbudgeted style blended with Aurora produced damping \(damping), not the \
+            worst-case \(expected). `nil` from `fieldBudget(forStyle:)` means UNKNOWN, not \
+            FREE: a retired look has no row because nobody re-derived it, not because it is \
+            calm. Treating it as 0 Hz would make the one case nobody has measured the one \
+            case that is never damped.
+            """)
+        XCTAssertLessThan(damping, 1.0, """
+            An unbudgeted style was damped by exactly 1.0, i.e. not at all. That is the \
+            failure this claim exists to catch, and it survives any future change to \
+            Aurora's row — unlike the literal it replaces.
             """)
     }
 }

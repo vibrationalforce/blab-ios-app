@@ -54,10 +54,15 @@
 // ⭐ THE COUNTERWEIGHT IS THE HALF THAT MATTERS, and it guards against the repair itself.
 // The obvious next tidy-up after reading the above is "unify all the flash ceilings" — and
 // that would fold `maxPulseRateHz` (2.5) into `maxFlashHz` (3.0). `FlashGuard`'s own doc
-// measured what that costs: the look budgets are derived FROM 2.5, Aurora lands on exactly
-// 3.00 Hz with zero margin, so raising the pulse ceiling to 3.0 puts Aurora at 3.6 Hz — a real
-// epilepsy-law violation introduced by a cleanup. `testThePulseCeilingIsNotTheFlashCeiling`
-// makes that specific merge red.
+// measured what that costs: the look budgets are derived FROM 2.5, and the tightest row —
+// RINGS at 2.50 Hz since #1127 — would land on exactly 3.000 Hz at a 3.0 ceiling, spending
+// the whole margin. `testThePulseCeilingIsNotTheFlashCeiling` makes that specific merge red.
+//
+// ⛔ #1127 — THIS PARAGRAPH SAID "Aurora … 3.6 Hz — a real epilepsy-law violation". True
+// until Aurora's swell moved off the clock onto the real breath signal (1.20 → 0.70). The
+// verdict is unchanged, its FORCE is not: the old reason was a violation, the new one is
+// spending the last of the margin. Written down in the weaker form on purpose — a safety
+// argument that overstates its case is one someone re-checks and then dismisses whole.
 //
 // ⚠️ WHAT THIS FILE CANNOT DO. It reads constants; it does not render anything. That every
 // shipped look actually obeys the ceiling is `FlashGuardTests.testEveryReachableLookObeysThe
@@ -135,13 +140,13 @@ final class TheFlashCeilingIsOneNumberTests: XCTestCase {
     // MARK: - Counterweights (green before AND after — they guard the repair, not the defect)
 
     /// The app's own pulse ceiling is STRICTER than WCAG's, and deliberately so. The obvious
-    /// "unify the ceilings" cleanup would raise it from 2.5 to 3.0 and put the Aurora look at
-    /// 3.6 Hz — a real violation introduced by tidying. `FlashGuard`'s own header measured that.
+    /// "unify the ceilings" cleanup would raise it from 2.5 to 3.0 and put the tightest look
+    /// (Rings since #1127) on exactly 3.000 Hz — the entire margin spent by tidying.
     func testThePulseCeilingIsNotTheFlashCeiling() {
         XCTAssertEqual(FlashGuard.maxPulseRateHz, 2.5, accuracy: 1e-12, """
             FlashGuard.maxPulseRateHz moved. The look budgets are derived FROM this number and \
-            Aurora sits on exactly 3.00 Hz with zero margin — see the doc at the declaration. \
-            Raising it to WCAG's 3.0 is not a rounding question.
+            the tightest row sits at 2.50 Hz — see the doc at the declaration. Raising it to \
+            WCAG's 3.0 leaves that row exactly ON the limit, which is not a rounding question.
             """)
         XCTAssertLessThan(FlashGuard.maxPulseRateHz, FlashGuard.maxFlashHz, """
             The app's pulse ceiling must stay STRICTLY below the WCAG ceiling. If these two were \

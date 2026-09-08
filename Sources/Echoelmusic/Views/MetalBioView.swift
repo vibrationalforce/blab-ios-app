@@ -1397,7 +1397,8 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
 
         // Integrate the flash-safe pulse phase from the SMOOTHED frequency. flashHz =
         // pulseHz × motion, hard-capped at `FlashGuard.maxPulseRateHz` (2.5 Hz, stricter
-        // than WCAG's 3 Hz because Aurora's budget lands exactly on 3.00 Hz at this rate).
+        // than WCAG's 3 Hz because the tightest look budget — Rings since #1127, Aurora
+        // before it — lands at 2.50 Hz here and would reach exactly 3.000 Hz at a 3.0 cap).
         // THIS is the authoritative cap — the phase every look's field is driven by.
         // Reduce Motion → freeze (no advance).
         //
@@ -1939,17 +1940,25 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
     // the same 261.63 Hz reference `fieldWater` uses, and clamped so neither a sub-bass nor
     // a cymbal can turn the curtain into a flat wash or into aliasing hash.
     //
-    // FLASH BUDGET — THE ROW'S NUMBER IS UNCHANGED AND THAT IS A CLAIM, NOT AN OVERSIGHT.
-    // Aurora is the worst-case row in the app (exactly 3.00 Hz, zero margin), so a rewrite
-    // here has to be re-derived rather than assumed neutral. The fold is the SWEEP, not the
-    // `abs()`: `wave` oscillates at 0.35·phase, so a pixel inside its travel sees the
-    // curtain's peak pass TWICE per cycle. `q` is single-peaked in exactly the way
-    // `1 − smoothstep(0, e, abs(·))` was, so the COUNT is identical — only each flash's
-    // SHAPE changes, which the budget does not measure. `rays` and `H` multiply SPATIAL
-    // coordinates and carry no phase, exactly as `fieldWater`'s `s` does. `breathe` is
-    // untouched here on purpose: giving the swell to the real breath signal deletes a
-    // phase-bearing factor and LOWERS the row, so it belongs in its own commit with the
-    // eight prose homes that quote the old number.
+    // FLASH BUDGET — #1127 RETIRED THE WORST-CASE ROW IN THE APP. Two phase-bearing factors
+    // used to multiply here: the drift sweep (0.70) and a `breathe` that was really the
+    // clock (0.50), summing to 1.20 × 2.5 = exactly 3.00 Hz with ZERO margin, in a look
+    // inside `LookBlendMap.defaultSequence`. Giving the swell to the real `breath` signal
+    // deletes the second one outright: 0.70 × 2.5 = 1.75 Hz, margin +1.25.
+    // What REMAINS the phase term, and why it is 0.70 rather than 0.35: the fold is the
+    // SWEEP, not an `abs()`. `wave` oscillates at 0.35·phase, so a pixel inside its travel
+    // sees the curtain's peak pass TWICE per cycle — true of `q` exactly as it was of the
+    // `1 − smoothstep(0, e, abs(·))` band, which is why #1125 could change the profile
+    // without moving the number. Only each flash's SHAPE changed, and the budget does not
+    // measure shape. `rays`, `H` and now `swell` carry no phase at all: the first two
+    // multiply SPATIAL coordinates as `fieldWater`'s `s` does, and breath is a ≤0.5 Hz BODY
+    // signal, the same standing this file already grants it in `fieldWater` and
+    // `fieldDepthCaustics`.
+    // ⚠️ THE BINDING ROW IS NOW RINGS at 2.50 Hz (margin +0.50), measured across every row
+    // rather than assumed. That does NOT license raising `maxPulseRateHz`: at a 3.0 ceiling
+    // Rings would land on exactly 3.000 Hz, spending the last of the margin. The ceiling's
+    // own doc is corrected to say so — with Rings named, because the reason it gives must
+    // survive the row it names.
     //
     // COST, HONESTLY: two `exp` and one `cos` replace two `smoothstep` and two `abs`. That
     // is slightly more expensive, not less — worth saying, since the neighbouring look was
@@ -1983,8 +1992,11 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
         // Field-aligned rays: vertical striations whose spacing carries the sounding pitch.
         float rays = clamp(3.0 * max(toneHz, 20.0) / 261.63, 2.0, 14.0);
         float ray = 0.72 + 0.28 * cos(p.x * rays * 6.2831853);
-        float breathe = 0.8 + 0.2 * sin(phase * 0.5);             // gentle
-        return clamp((curtain + curtain2 * 0.6) * ray * breathe, 0.0, 1.0);
+        // The swell comes from the BODY, not the clock. `breath` was in this signature and
+        // unread; the old `0.8 + 0.2*sin(phase*0.5)` was the phase wearing the body's name.
+        // Deleting that second phase-bearing factor is what drops the row from 1.20 to 0.70.
+        float swell = 0.80 + 0.20 * clamp(breath, 0.0, 1.0);
+        return clamp((curtain + curtain2 * 0.6) * ray * swell, 0.0, 1.0);
     }
     // STYLE 6 — LISSAJOUS: woven nodal figures from two tone-derived axis frequencies
     // (a harmonograph weave). The x/y integer ratios come from the sounding TONE via

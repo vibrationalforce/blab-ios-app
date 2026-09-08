@@ -189,8 +189,9 @@ final class TheWaterLookObeysCapillaryDispersionTests: XCTestCase {
         → 1.70 Hz, derived from t = 0.4·phase multiplied by cos(… − 0.7t): a product of two \
         phase-bearing factors, giving a 0.4 + 0.28 sideband. Re-derive that row in the same \
         commit, and check the fold rule too — an abs() or a square on a phase-bearing \
-        quantity doubles the count. The Water row is NOT free headroom: Aurora already sits \
-        at exactly 3.00 Hz against the 3.0 Hz WCAG law with zero margin.
+        quantity doubles the count. The Water row is NOT free headroom: the tightest row \
+        (Rings, 2.50 Hz since #1127 — it was Aurora on exactly 3.00 with zero margin until \
+        its swell moved onto the real breath signal) leaves only 0.50 Hz for the whole app.
         """
 
     private static func numbers(in text: String) -> [Double] {

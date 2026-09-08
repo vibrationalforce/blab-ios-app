@@ -48,10 +48,19 @@ public enum FlashGuard {
     ///
     /// This is not belt-and-braces caution, it is the number the look budgets are computed
     /// FROM. `FlashGuardTests.testEveryReachableLookObeysTheThreeHzLaw` derives each look's
-    /// flash rate as (phase rate × its own multiplier, doubled if the field folds), and
-    /// Aurora lands on **exactly 3.00 Hz** — zero margin against `maxFlashHz`. So raising
-    /// this to WCAG's 3.0 would put Aurora at 3.6 Hz: a real epilepsy-law violation, not a
-    /// rounding question.
+    /// flash rate as (phase rate × its own multiplier, doubled if the field folds), and the
+    /// tightest row lands at **2.50 Hz** — that is **Rings** (0.5, folds) since #1127.
+    /// Raising this to WCAG's 3.0 would put Rings on exactly 3.000 Hz: the entire margin
+    /// spent, with no room left for a future look or for the blend union to sit in.
+    ///
+    /// ⛔ #1127 — THIS DOC USED TO NAME **AURORA** AND SAID A 3.0 CEILING WOULD PUT IT AT
+    /// 3.6 Hz, "a real epilepsy-law violation, not a rounding question". That was exactly
+    /// right until Aurora's swell was moved off the clock onto the real breath signal, which
+    /// dropped its row from 1.20 to 0.70. The CONCLUSION survives — do not raise this — but
+    /// its STRENGTH honestly weakens: the old reason was a violation, the new one is
+    /// spending the last of the margin. Recording the weakening rather than keeping the
+    /// scarier sentence, because the next session decides from this line and a reason that
+    /// overstates its case is how a safety number gets argued away once someone checks it.
     ///
     /// It lives here, and every consumer reads it, because the value used to be a bare
     /// `2.5` literal in `MetalBioView`, in `HeaderMonitors` AND in the tests that prove the
@@ -313,22 +322,23 @@ public enum FlashGuard {
         // (`s` multiplies the SPATIAL coordinate), so this row is unchanged BY STRUCTURE.
         .init(styleIndex: 3, name: "Water", phaseMultiplier: 0.68, folds: false),
         // fieldAurora: the drift `wave` sweeps past a pixel TWICE per cycle of its fastest
-        // term (1.0·t = 0.35·phase) ⇒ 0.70. The curtain is then MULTIPLIED by `breathe`
-        // (0.5·phase), adding a 0.70 + 0.50 = 1.20 sideband ⇒ 3.00 Hz.
-        // ⛔ #1125 — THIS DERIVATION USED TO SAY "abs(p.y − wave) FOLDS", AND THAT NAMED THE
-        // WRONG CAUSE. The doubling is the SWEEP: the curtain's peak crosses a fixed pixel
-        // on the way out and again on the way back, whatever the profile's shape. #1125
-        // replaced the symmetric `abs()` band with the asymmetric Chapman profile a real
-        // electron beam makes, and the count did not move — which is precisely what a
-        // sweep-based derivation predicts and an `abs()`-based one does not. A row whose
-        // stated cause is wrong survives a rewrite by luck, so the cause is corrected here
-        // even though the NUMBER is untouched.
-        // ⚠️ AURORA SITS EXACTLY ON THE LIMIT WITH ZERO MARGIN — the worst-case row in the
-        // app, and it is in `LookBlendMap.defaultSequence`. Do not add any further phase
-        // term to it. (The one change that would LOWER it is giving `breathe` to the real
-        // breath signal instead of the clock; that deletes the 0.50 outright and is held
-        // back to its own commit, because eight files quote the 3.00 Hz it would falsify.)
-        .init(styleIndex: 5, name: "Aurora", phaseMultiplier: 1.20, folds: false),
+        // term (1.0·t = 0.35·phase) ⇒ 0.70. That is now the ONLY phase-bearing factor.
+        // ⭐ #1127 — THIS ROW WAS 1.20 (= 3.00 Hz, ZERO MARGIN) AND WAS THE WORST CASE IN
+        // THE APP. The second 0.50 came from `breathe = 0.8 + 0.2·sin(0.5·phase)`: the
+        // CLOCK wearing the body's name, in a function that already received `breath` as a
+        // parameter and never read it. Reading the real signal instead deletes the factor —
+        // not damps it — so the row is 0.70 ⇒ 1.75 Hz, margin +1.25. Breath is a ≤0.5 Hz
+        // BODY signal and carries no phase, the same standing `fieldWater` and
+        // `fieldDepthCaustics` already grant it.
+        // ⛔ AND THE DERIVATION BEFORE THAT ONE BLAMED `abs(p.y − wave)` FOR THE FOLD. It is
+        // the SWEEP: the peak crosses a fixed pixel on the way out and again on the way
+        // back, whatever the profile's shape. #1125 proved it by replacing the symmetric
+        // band with an asymmetric Chapman profile and watching the count not move — which
+        // an `abs()`-based derivation would have got wrong by luck.
+        // ⚠️ AURORA IS NO LONGER THE BINDING ROW; RINGS IS, at 2.50 Hz. Anything that adds
+        // a phase term here still costs margin, but the app's tightest constraint has moved
+        // and the ceiling's doc names Rings now.
+        .init(styleIndex: 5, name: "Aurora", phaseMultiplier: 0.70, folds: false),
         // fieldDepthCaustics (#1117 rebuilt it as a real ray map): the only phase-bearing term
         // is `breathe = 0.85 + 0.15·sin(0.30·phase)`, entering the focus number φ. Unlike the
         // dish's lens law, 1/|det J| is NOT monotone in φ — it peaks AT the caustic — so a
@@ -347,9 +357,17 @@ public enum FlashGuard {
     /// same. It is not a theoretical gap: `mix(fieldA, fieldB, t)` at an intermediate `t`
     /// puts BOTH oscillations into one pixel's luminance, so the pixel sees the UNION of the
     /// two flash counts — the same reasoning the shader already applies to the heartbeat
-    /// bloom superposed on the field. And Aurora alone is exactly 3.00 Hz with zero margin,
-    /// inside `LookBlendMap.defaultSequence`, so Water↔Aurora at mid-slider is 4.70 Hz by
-    /// that arithmetic: an ordinary drag of the shipped look slider, over the epilepsy limit.
+    /// bloom superposed on the field. When #1124 wrote this, Aurora alone was exactly
+    /// 3.00 Hz with zero margin, inside `LookBlendMap.defaultSequence`, so Water↔Aurora at
+    /// mid-slider came to 4.70 Hz: an ordinary drag of the shipped look slider, over the
+    /// epilepsy limit.
+    ///
+    /// ⚠️ #1127 LOWERED AURORA TO 1.75 Hz, SO THAT PARTICULAR PAIR IS NOW 3.45 Hz — STILL
+    /// OVER, and this function is still load-bearing. The worst pair is now Rings with
+    /// itself at 5.00 Hz (damping 0.600), where it used to be Aurora with itself at 6.00
+    /// (0.500), so blends are damped LESS than before, not more. Kept as history rather
+    /// than rewritten to today's numbers: the 4.70 figure is why this function exists, and
+    /// a doc that silently restates itself every commit teaches nobody why.
     ///
     /// THE MODEL, stated so it can be argued with rather than trusted:
     ///   · `w = 2·min(t, 1−t)` — how much the two looks actually COEXIST. 0 at either end of

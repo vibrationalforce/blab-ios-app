@@ -100,7 +100,8 @@ final class TheAuroraIsAChapmanProfileTests: XCTestCase {
         }
         XCTAssertTrue(rising && falling, """
             the profile is no longer single-peaked. Two maxima per pass would DOUBLE Aurora's \
-            flash count, and Aurora already sits on exactly 3.00 Hz with zero margin.
+            flash count — from 1.75 Hz to 3.50, straight over the 3 Hz WCAG law. (Until \
+            #1127 it sat on exactly 3.00 with zero margin, so this was even less forgiving.)
             """)
     }
 
@@ -117,10 +118,10 @@ final class TheAuroraIsAChapmanProfileTests: XCTestCase {
             return XCTFail("the ray striation line is gone — claim 1's pitch path has no consumer")
         }
         XCTAssertFalse(rayLine.contains("phase"), """
-            the ray term now carries `phase`. Aurora's budget is 1.20 with ZERO margin against \
-            the 3 Hz WCAG ceiling, and its row says in as many words: do not add any further \
-            phase term. `rays` multiplies a SPATIAL coordinate, exactly as fieldWater's `s` \
-            does — that is why the pitch could be wired here without reopening the budget.
+            the ray term now carries `phase`. `rays` multiplies a SPATIAL coordinate, exactly \
+            as fieldWater's `s` does — that is why the pitch could be wired into this \
+            look without reopening its flash budget at all. Adding a phase term here \
+            costs margin and means re-deriving the row in the same commit.
             """)
         XCTAssertTrue(rayLine.contains("p.x"), """
             the striation stopped running vertically. Auroral rays are FIELD-ALIGNED — they \
@@ -128,21 +129,67 @@ final class TheAuroraIsAChapmanProfileTests: XCTestCase {
             """)
     }
 
-    // MARK: - 4 · Counterweight: the budget row is unchanged, and deliberately so
+    // MARK: - 4 · The swell comes from the body, not the clock
 
-    func testTheAuroraBudgetRowDidNotMove() {
+    func testTheSwellReadsTheBreathAndNotTheClock() throws {
+        let src = code(try source())
+        guard let open = src.range(of: "float fieldAurora(float2 p, float toneHz,"),
+              let close = src.range(of: "\n    }", range: open.upperBound ..< src.endIndex) else {
+            return XCTFail("fieldAurora's body could not be located")
+        }
+        let body = String(src[open.upperBound ..< close.lowerBound])
+        guard let swell = body.split(separator: "\n").first(where: { $0.contains("float swell =") }) else {
+            return XCTFail("""
+                the swell line is gone. Before #1127 it read `0.8 + 0.2*sin(phase*0.5)` — the \
+                CLOCK wearing the body's name, in a function that already received `breath` as \
+                a parameter and never read it. That second phase-bearing factor is what made \
+                this the app's only zero-margin row.
+                """)
+        }
+        XCTAssertTrue(swell.contains("breath"), """
+            the swell stopped reading the real breath signal. This is not a style preference: \
+            `breath` is a ≤0.5 Hz BODY signal and carries no phase, which is the entire reason \
+            Aurora's budget could fall from 1.20 to 0.70.
+            """)
+        XCTAssertFalse(swell.contains("phase"), """
+            the swell reads `phase` again. That restores the 0.50 sideband, puts Aurora back on \
+            exactly 3.00 Hz with zero margin, and silently falsifies the seven prose homes that \
+            #1127 corrected — including `maxPulseRateHz`'s own doc.
+            """)
+    }
+
+    // MARK: - 5 · Counterweight: the row that body signal bought, and who is tightest now
+
+    func testTheAuroraBudgetRowFellToSeventy() {
         guard let row = FlashGuard.fieldBudget(forStyle: 5) else {
             return XCTFail("Aurora lost its flash budget row — nil means UNKNOWN, not free")
         }
         XCTAssertEqual(row.name, "Aurora")
-        XCTAssertEqual(row.phaseMultiplier, 1.20, accuracy: 1e-12, """
-            Aurora's multiplier moved. #1125 rewrote this look's whole body and the number was \
-            re-derived as UNCHANGED on purpose — the fold is the sweep, not the `abs()` that \
-            the old comment blamed. If a later commit gives `breathe` to the real breath \
-            signal the 0.50 sideband disappears and this row SHOULD drop to 0.70 — but eight \
-            files quote the 3.00 Hz, so that number moves only in a commit that moves them too.
+        XCTAssertEqual(row.phaseMultiplier, 0.70, accuracy: 1e-12, """
+            Aurora's multiplier moved. 0.70 is the drift sweep ALONE: `wave` oscillates at \
+            0.35·phase and its peak crosses a fixed pixel twice per cycle. #1125 rewrote the \
+            profile and deliberately left the number at 1.20; #1127 deleted the second factor \
+            by giving the swell to the real breath signal. Anything that moves this again must \
+            re-derive it AND carry the prose homes that quote it — `maxPulseRateHz`'s doc names \
+            the binding row by name, so it goes stale silently.
             """)
-        XCTAssertEqual(row.effectiveHz, 3.0, accuracy: 1e-9,
-                       "Aurora is the worst-case row in the app; it must stay exactly on, never over")
+        XCTAssertEqual(row.effectiveHz, 1.75, accuracy: 1e-9,
+                       "Aurora should now sit at 1.75 Hz with +1.25 of margin")
+
+        // The point of the whole slice: the app no longer HAS a zero-margin row, and the
+        // tightest one is a different look. Derived from the table, never named twice.
+        guard let worst = FlashGuard.fieldBudgets.max(by: { $0.effectiveHz < $1.effectiveHz }) else {
+            return XCTFail("the flash budget table is empty — nothing was checked")
+        }
+        XCTAssertEqual(worst.name, "Rings", """
+            the binding row is now \(worst.name). `maxPulseRateHz`'s doc, this file, \
+            TheFlashCeilingIsOneNumberTests and TheWaterLookObeysCapillaryDispersionTests all \
+            name Rings as the tightest look — #456: the prose moves in every home, not only \
+            the one being edited.
+            """)
+        XCTAssertLessThan(worst.effectiveHz, FlashGuard.maxFlashHz, """
+            some row is back ON or over the WCAG ceiling. Since #1127 every row has real \
+            margin; a row sitting exactly at the limit is the state this slice existed to end.
+            """)
     }
 }

@@ -26384,3 +26384,58 @@ Wächter `TheAuroraIsAChapmanProfileTests`, vier Ansprüche, transkribiert GRÜN
 NEEDS-FOUNDER-VERIFY: Aurora wählen und eine steigende Linie spielen — die senkrechten
 Strahlen sollen sich mit der Tonhöhe sichtbar vermehren, die Unterkante deutlich schärfer
 bleiben als der Kopf.
+
+## #1126 — Der Shader-Wächter war seit #1117 ROT und die Klon-Lotterie hat es acht Commits lang versteckt (2026-09-08)
+
+`TheShippedShaderActuallyCompilesTests.testTheShaderBuilds()` ist in Lauf 34232685553 rot.
+Naheliegende Lesart: „die Scheibe, die gerade den Shader angefasst hat, war es." **Falsch, und
+das Prüfen kostete einen Befehl:** derselbe Job auf dem VORIGEN Commit meldet TEST FAILURES: 0.
+Der Unterschied ist nicht der Code, sondern auf WELCHEN KLON der Test fiel.
+
+**Der echte Defekt ist neun Commits alt und gehört #1117.** Der Wächter zieht den Shader aus
+seinem Swift-String und ersetzt die `\(…)`-Interpolationen von Hand. #1117 hat ZEHN
+`WaterCaustics`-Interpolationen hinzugefügt und die Liste nicht erweitert. Gemessen: 15 im
+Literal, 5 ersetzt — Metal bekam zehn wörtliche `\(WaterCaustics.…)`-Fragmente.
+
+**Warum unsichtbar:** #396 tötet auf jedem Lauf einen Simulator-Klon; welche Tests wirklich
+LAUFEN, schwankt. Dieser landete immer wieder auf dem toten Klon. Jeder Lauf sah aus wie jeder
+andere.
+
+⭐ **Und der Wächter hat das alles schon gesagt.** Anspruch 2 prüft genau, dass kein
+unersetztes `\(` überlebt, und seine Meldung nennt die Abhilfe wörtlich. Er läuft
+alphabetisch sogar VOR Anspruch 1. Es fehlte nichts am Wächter — es fehlte ein LAUF. Deshalb
+fügt dieser Commit KEINEN neuen Anspruch hinzu.
+
+**Gesetz:** taucht ein Rot in einer Scheibe auf, die den betroffenen Bereich nicht angefasst
+hat, **zuerst den TERMINPLAN verdächtigen, nicht die Scheibe.** Eine Suite, die einen Test nie
+eingeplant hat, ist keine Suite, die ihn bestanden hat.
+
+## #1127 — Aurora verliert die Null-Reserve: der Schwell kommt vom Körper, nicht von der Uhr (2026-09-08)
+
+`fieldAurora` bekam `breath` als Parameter durchgereicht und **las es nie**. Der Schwell kam
+aus `0.8 + 0.2·sin(0.5·phase)` — die Uhr mit dem Namen des Körpers. Diesen zweiten
+phasen-tragenden Faktor zu löschen (statt zu dämpfen) senkt die Zeile **1,20 → 0,70**, also
+**3,00 → 1,75 Hz**. Die einzige Null-Reserve-Zeile der App ist damit weg.
+
+**Gemessen, nicht geschätzt** (alle Zeilen bei 2,5 Hz): Rings 2,50 · Aurora 1,75 · Water 1,70 ·
+Depth 1,50 · Dish 1,00. **Neue engste Zeile: Rings, Reserve +0,50.** Schlimmste Mischung
+Rings+Rings = 5,00 → Dämpfung 0,600 (vorher Aurora+Aurora = 6,00 → 0,500): Mischungen werden
+WENIGER gebremst.
+
+⚠️ **Das entsperrt das Anheben von `maxPulseRateHz` NICHT** — bei 3,0 läge Rings auf exakt
+3,000 Hz. Der Schluss überlebt, seine STÄRKE nicht: vorher eine Verletzung, jetzt das
+Aufbrauchen der letzten Reserve. Die schwächere Fassung steht bewusst so da.
+
+**Sieben Prosa-Heimaten mitgezogen (#456)**, davon zwei, die ein Stichwort-Sweep nie gefunden
+hätte: die `abs()`-Fold-Beschreibung (seit #1125 falsch) und die Behauptung, die
+Herzschlag-Blüte sei „offen und die härtere Hälfte" — **überzogen**, sie ist durch ihren
+eigenen Helligkeitshub unter der WCAG-Schwelle begrenzt (0,42 × 0,21 × 0,94 × 1,06 = 0,088 <
+0,10); was fehlt, ist die Geräte-Photometrie, nicht die Absicherung.
+
+⛔ Und #1124s Gegengewicht pinnte `damping == 0.5` als Literal und wäre rot geworden — die
+0,5 war nie ein Gesetz, sondern 3,0/(3,0+3,0), wahr nur solange Aurora zufällig auf der Decke
+saß. Jetzt aus beiden Zeilen ABGELEITET.
+
+Zwei Wächter, neun Ansprüche, gegen den echten Baum transkribiert GRÜN.
+NEEDS-FOUNDER-VERIFY: Aurora wählen und ruhig atmen — der Vorhang soll mit dem Atem an- und
+abschwellen statt mit einem eigenen Takt.
