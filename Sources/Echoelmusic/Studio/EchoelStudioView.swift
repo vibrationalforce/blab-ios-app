@@ -5346,7 +5346,7 @@ struct EchoelStudioView: View {
             // stack it replaced — see the ⭐ block on `visualAdjustFields(spacing:)`.
             visualAdjustFields(spacing: 14)
             MusicColourRowView()
-            Text("Colour defaults to the heard tone octave-transposed into visible light (its frequency doubled until it reaches the visible band, rendered via CIE 1931); Hue/Saturation rotate the palette for VJ/performance use. Motion is capped so the flash rate always stays under the 3 Hz safety limit.")
+            Text("Colour defaults to the heard tone octave-transposed into visible light — its frequency doubled until it reaches the visible band, rendered through CIE 1931 and closed over the CIE purple line where deep red meets deep violet, so every tone has a colour. Hue/Saturation rotate the palette for VJ/performance use. Motion is capped so the flash rate always stays under the 3 Hz safety limit.")
                 .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
                 .fixedSize(horizontal: false, vertical: true)
             // #359 step 2 — directly under the colour caption, because Hue and Saturation are

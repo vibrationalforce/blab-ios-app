@@ -26886,3 +26886,46 @@ jetzt im §R-Kopf selbst.
   Ich notierte 671.991 B und war mit demselben Absatz schon bei 673.039. Die Ledger-Seite
   bekommt deshalb bewusst kein Literal, nur `wc -c`. Die CLAUDE.md-Seite steht still und
   behält ihre Zahl — dort sitzt die Decke.
+
+## #1143 — Drei Sätze verkauften eine reine CIE-Darstellung; 39 % des Oktavkreises sind eine Mischung
+
+Aus dem Visual-Deep-Audit (`AUDIT_VISUAL_2026-09-06`, bestätigter Befund „The Field caption
+overstates"). Beim Nachlauf zeigte sich zuerst, wie viel schon zu ist: **Luminanz-Boden
+(#1054), Filmic-S-Kurve (#1059), Intensity-Clipping (Peak-Normalisierung), Sharp-only-Namen
+(#1060), Ton-Wolke gegen Gitter (#1061), Gitter-Beschriftung, Beamer-Wetter, Vapor-Relaunch
+(#1032)** — alle erledigt. Offen blieben zwei: der Preset-Chip mit 32 pt (LOW, eine Zahl) und
+dieser hier.
+
+**Der Befund, nachgemessen statt zitiert.** `SpectralColor.toneLinearRGB` rendert die reine
+Spektralfarbe nur, solange `t` in [tRed, tViolet] = [0,285402219; 0,893084796] liegt. Außerhalb
+— an der Naht, wo der tiefrote Rand auf den tiefvioletten wrappt — ist die Farbe eine lineare
+Mischung der 640-nm- und 420-nm-Endfarben entlang der CIE-Purpurlinie. Naht = `tRed + 1 −
+tViolet` = **0,392317**, also **39,2 % jeder Oktave**. Bei A4 = 440 Hz liegen **fünf der zwölf
+Tonklassen dort: E · F · F♯ · G · G♯**.
+
+Drei Sätze, die ein SPIELER liest, behaupteten trotzdem die reine CIE-Darstellung der
+transponierten Frequenz: die Field-Farbunterschrift, `LightScienceInfo.scope` und
+`.redNearInfrared`.
+
+⛔ **Einer war schlimmer als eine Über-Behauptung und ist zurückgenommen:** `.redNearInfrared`
+sagte „where a tone transposes past ~700 nm it simply leaves visible colour behind". Das gilt
+für `visibleWavelength(forToneHz:)` — die ROHE Ablesung — und ist für die GERENDERTE Farbe
+falsch, die über die Naht schließt und nie dunkel wird. Es erzählte einem Spieler, ein Ton
+könne unsichtbar werden; keiner wird das je.
+
+⚠️ **Die Purpurlinie ist kein Trick, und die neue Kopie darf nicht wie eine Entschuldigung
+klingen.** Das CIE-1931-Diagramm wird von ihr geschlossen; die Farben darauf sind echt
+(Mischungen aus rotem und violettem Licht), nur nicht monochromatisch. Genau dieses Schließen
+gibt JEDER Tonklasse eine Farbe statt einer Lücke. Falsch war allein „jede gezeigte Farbe ist
+eine gerenderte Einzelwellenlänge".
+
+⭐ **Die 39 % stehen nur in der WISSENSCHAFTS-Erklärung, nicht in der Bedien-Unterschrift** —
+eine Zahl gehört in den Erklärtext, eine Regler-Unterschrift bleibt lesbar. Und sie ist nicht
+abgeschrieben: Anspruch 3 des Wächters rechnet sie aus den drei nm-Konstanten neu.
+
+Wächter `TheColourCopyNamesThePurpleLineTests`: 4 Ansprüche, 13 Prüfungen, in Python
+getrieben, **alle grün**. Anspruch 4 ist das Gegengewicht — `visibleWavelength` UND
+`toneLinearRGB` müssen beide bleiben: zwei verschiedene Antworten mit Absicht, und wer die
+Ablesung „vereinheitlicht", löscht die Zahl, die die Naht überhaupt erklärbar macht.
+Toleranz der Naht bewusst lockerer als der gemessene Abstand (4,23e-7), damit eine anders
+rundende `log2` keine korrekte Konstante rot macht.
