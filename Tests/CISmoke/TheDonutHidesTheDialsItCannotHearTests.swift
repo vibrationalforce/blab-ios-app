@@ -134,7 +134,17 @@ final class TheDonutHidesTheDialsItCannotHearTests: XCTestCase {
     }
 }
 
-// NEEDS-FOUNDER-VERIFY: Vollbild-Visual → Donut-Taste, dann zurück ins Field-Panel → „Fine tune".
-// Es dürfen nur noch die Erklärzeile und „Detail" dastehen, und Detail muss die Ringzahl sichtbar
-// ändern. Gegenprobe mit Beamer/AirPlay VERBUNDEN: dann müssen ALLE Regler wieder da sein, weil
-// der externe Schirm das Metall-Feld zeigt und Hue/Saturation dort wirklich wirken.
+// NEEDS-FOUNDER-VERIFY: Field-Panel öffnen, den Schalter „Spectrum donuts instead of the field"
+// einschalten, dann im selben Panel auf „Fine tune" — es dürfen nur noch die Erklärzeile und
+// „Detail" dastehen, und Detail muss die Ringzahl sichtbar ändern. Gegenprobe mit Beamer/AirPlay
+// VERBUNDEN: dann müssen ALLE Regler wieder da sein, weil der externe Schirm das Metall-Feld
+// zeigt und Hue/Saturation dort wirklich wirken.
+//
+// ⛔ DIESE BITTE NANNTE „Vollbild-Visual → Donut-Taste" UND SCHICKTE DAMIT AN EINE TÜR, DIE ES
+// NICHT MEHR GIBT (#1145). Die Donut-Taste saß in der Vollbild-Chrome, die #1069 gelöscht hat;
+// gemessen ist der EINE Schreiber von `spectralDonuts` heute der `Toggle(isOn: $spectralDonuts)`
+// im Field-Panel (`EchoelStudioView.swift:5280`, Befehl: `git grep -n "spectralDonuts.toggle()\|
+// spectralDonuts *=\|\$spectralDonuts" -- Sources`). Die FÄHIGKEIT war die ganze Zeit erreichbar
+// — nur der WEG war weg. Das ist eine eigene Klasse: nicht BLOCKIERT (`founder-verify.py` sieht
+// so etwas nicht), sondern FEHLGELEITET. Sie kostet den Founder eine Geräte-Sitzung, in der er
+// eine Taste sucht statt eine Frage zu beantworten.

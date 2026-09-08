@@ -115,7 +115,12 @@ final class TheLookReadoutKnowsWhichPictureItLabelsTests: XCTestCase {
     }
 }
 
-// NEEDS-FOUNDER-VERIFY: Field-Panel öffnen, das schwebende Visual auf Donuts stellen (Vollbild →
-// Donut-Taste), zurück ins Field-Panel — steht in der Look-Zeile jetzt „Donuts" statt eines
-// Metall-Look-Namens? Gegenprobe: zurück auf das Feld schalten, dort muss wieder der Look-Name
-// stehen.
+// NEEDS-FOUNDER-VERIFY: Field-Panel öffnen, den Schalter „Spectrum donuts instead of the field"
+// einschalten — steht in der Look-Zeile darunter jetzt „Donuts" statt eines Metall-Look-Namens?
+// Gegenprobe: Schalter wieder aus, dort muss wieder der Look-Name stehen.
+//
+// ⛔ DIESE BITTE NANNTE „Vollbild → Donut-Taste" UND SCHICKTE DAMIT AN EINE TÜR, DIE ES NICHT
+// MEHR GIBT (#1145) — dieselbe Fehlleitung wie in `TheDonutHidesTheDialsItCannotHearTests`, dort
+// steht die volle Messung. Kurz: die Donut-Taste saß in der Vollbild-Chrome, die #1069 gelöscht
+// hat; der EINE Schreiber von `spectralDonuts` ist heute der Toggle im Field-Panel. Schalter und
+// Look-Zeile stehen damit im SELBEN Panel — die alte Fassung schickte zweimal hin und her.

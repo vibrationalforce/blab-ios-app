@@ -27011,3 +27011,33 @@ sagen es nicht".
 Nicht in diesem Zyklus repariert (ein Ralph-Punkt pro Zyklus, #1144 läuft noch durch CI).
 Nächster Zyklus: die vier Routen einzeln nachmessen und umschreiben — **einzeln**, siehe die
 gestorbene Hypothese.
+
+## #1145 — Zwei der vier „fehlgeleiteten" Bitten waren richtig; nur zwei mussten umgeschrieben werden
+
+Der Befund oben („Vier Founder-Bitten schicken ihn zu Türen, die es nicht mehr gibt") ist beim
+Reparieren **zur Hälfte zurückgenommen worden** — und zwar durch genau die Vorsichtsregel, die
+ich mir beim Anlegen der Aufgabe selbst aufgeschrieben hatte: *einzeln nachmessen, kein
+Sammel-Fix*.
+
+**Gemessen, Bitte für Bitte:**
+
+| Bitte | Route heute | Urteil |
+|---|---|---|
+| `AStillIsOneFrameNotASecondPathTests.swift:144` | `Text("Full screen")` steht in `EchoelStudioView.swift:5191` und ruft `openFullscreenVisual()`; `StillShutterButton` sitzt in `FloatingVisualWindow.swift:1247` hinter `if windowSize.isFullscreen, fit.stillShutter` | **RICHTIG** — der Vollbild-Schritt ist nicht veraltet, er ist PFLICHT |
+| `TheStillSaysWhetherItWasSavedTests.swift:203` | dieselbe Route | **RICHTIG** |
+| `TheDonutHidesTheDialsItCannotHearTests.swift:137` | „Donut-Taste" gibt es nicht; einziger Schreiber von `spectralDonuts` ist `Toggle(isOn: $spectralDonuts)` in `EchoelStudioView.swift:5280` (Field-Panel) | **FEHLGELEITET → umgeschrieben** |
+| `TheLookReadoutKnowsWhichPictureItLabelsTests.swift:118` | dito | **FEHLGELEITET → umgeschrieben** |
+
+⛔ **Woher der Zählfehler kam, und das ist die eigentliche Lehre.** Der Befund maß `showVisual`
+(existiert nicht mehr) und schloss daraus auf JEDE Bitte, die das Wort „Vollbild" enthält. Aber
+`showVisual` war das **Cover**; #1067 hat den Knopf danach neu gebaut, sodass er das EINE
+schwebende Fenster auf `.fullscreen` vergrößert. Der Zustand „Vollbild" lebt also weiter, nur
+die Technik dahinter ist eine andere. **Ein gelöschtes SYMBOL ist kein Beweis für einen toten
+WEG** — dieselbe Klasse wie #546 (Schreiber gefunden, Leser abgeschaltet), nur andersherum:
+hier war der alte Mechanismus tot und die Fähigkeit über einen neuen erreichbar.
+
+⭐ **Die Klasse FEHLGELEITET bleibt echt** — sie ist nur halb so groß wie behauptet. `founder-verify.py`
+kann sie weiterhin nicht sehen: sein `BLOCKED`-Detektor sucht die fehlende TÜR, und hier ist die
+Tür da, nur woanders. Ein MISROUTED-Detektor müsste jede in einer Bitte genannte UI-Beschriftung
+gegen `Sources/` greppen. Nicht gebaut — er hätte bei zwei von vier Fällen falsch Alarm geschlagen,
+weil „Full screen" als Beschriftung sehr wohl existiert. Erst messen, wie oft er recht hätte.
