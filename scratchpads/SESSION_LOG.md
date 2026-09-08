@@ -26574,3 +26574,34 @@ the truncation it passes. Worth recording: a transcription can produce a false R
 as a false green, and the fix is to re-drive the single check, not to edit the guard.
 Four mutants would go red (wire a field · delete a note · remove the shader term · rename
 `pulseHz`). No behaviour change: docs and a guard.
+
+## #1132 — die HRV-Scheibe ist beim Messen gestorben, und das ist das Ergebnis (2026-09-08)
+
+Der Council-Entwurf aus dem vorigen Zyklus stand: HRV als respiratorischer Wobble (RSA) auf
+`BioVisualParams.pulseHz` — physiologisch exakt, kein neues Uniform (also #1119 umgangen),
+blitz-sicher per Konstruktion, beide Zutaten schon in der Funktion. Gate war PROCEED.
+
+**Die Pflicht-Messung vor dem Bauen hat ihn gekippt.** `uniforms.pulseHz` wird mit **τ = 3,0 s**
+geglättet (MetalBioView:1382), `uniforms.breath` mit **τ = 0,35 s** (Zeile 1184) — Faktor 8,6
+Unterschied zwischen genau den zwei Signalen, die gekoppelt werden sollen. Ein 0,1-Hz-Atem-Sinus
+durch τ = 3 s: Restamplitude 0,469, Verzug 62,1° = **1,72 s**. Der Schwung käme halbiert und fast
+zwei Sekunden zu spät — sichtbar als „das Bild wird schneller, während ich ausatme". Kein
+subtiler Fehler, sondern ein Phasenfehler in Richtung des Gegenteils.
+
+Nachgerechnet, damit die nächste Sitzung nicht das Falsche repariert: der Slew-Limiter ist NICHT
+bindend (0,075 gegen 0,5 Hz/s). Bindend ist allein τ. Und τ herunterzudrehen ist die eigentliche
+Falle — es ist ausgeliefertes Stabilitätsverhalten mit eigener Begründung an Zeile 864.
+
+**Ergebnis: nicht gebaut, als DEAD-END #1132 im `HARNESS_LEDGER` festgehalten**, mit dem
+funktionierenden Weg daneben (Faktor NACH dem Glätter, auf dem Phasen-Inkrement; `hrv` als
+gewöhnliche View-Eigenschaft statt als Uniform-Feld — dann bleibt #1119 außen vor) und mit der
+offenen Vorfrage (`hasMeasuredBreath` bei Kamera und HealthKit).
+
+⭐ **Die Lehre ist über die Reihenfolge, nicht über RSA.** Der Council hatte fünf Sitze und alle
+fünf sagten proceed — weil alle fünf über die ABBILDUNG urteilten und keiner über den
+EMPFÄNGER. Eine Abbildung ist erst dann gebaut, wenn der Pfad, durch den sie fließt, gemessen
+ist; ein Glätter ist ein Teil der Abbildung, nicht ein Detail dahinter.
+
+Gates zu #1131 (453c2b10) im selben Zyklus gelesen: Xcode Compile Check ✅, CI/CD
+„Build for Testing" ✅ (der neue Wächter kompiliert), „Run Tests" lief noch — namentlich also
+weiter UNBEWIESEN, nicht grün.

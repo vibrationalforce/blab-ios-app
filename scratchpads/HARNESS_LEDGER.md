@@ -3628,3 +3628,50 @@ Befund); das Werkzeug VOR jedem Sources-Commit laufen lassen (Arbeitsbaum gegen 
 `(prose)`-Namen zuletzt öffnen. Und: ein Klassifikator, der neun von 23 Agenten-Lesungen ersetzt,
 wird gegen genau diese Lesungen gemessen, bevor er ins Werkzeug geht — beide Fehler der ersten
 Fassungen (Raw-String-Fence, Escape) fielen nur durch diesen Vergleich auf.
+
+## DEAD-END #1132 (2026-09-08) — HRV als Atem-Wobble auf `BioVisualParams.pulseHz` kommt phasenverschoben und halbiert an
+
+**Die Idee war gut und der Ort ist falsch.** RSA (respiratorische Sinusarrhythmie) ist die
+ehrlichste HRV→Bild-Abbildung, die es gibt: die Herzrate steigt beim Einatmen und fällt beim
+Ausatmen, und die GRÖSSE dieses Schwungs IST der Hauptbeitrag zur HRV im Atemband. Der
+Bild-Herzschlag pulsiert heute exakt gleichmäßig. `BioVisualParams.from()` hat beide Zutaten
+(`hrvForSound`, `breathPhase`), schreibt `pulseHz` — das EINZIGE Feld der Struktur mit einem
+Verbraucher (#1131) — und der Weg braucht **kein neues Uniform**, umgeht also die
+#1119-Byte-Layout-Gefahr vollständig. Blitz-sicher wäre er auch: `min(pulseHz*motion, 2.5)`
+klemmt stromabwärts von jedem Schreiber.
+
+**Warum es trotzdem nicht geht — gemessen, nicht geschätzt.** `MetalBioView.swift:1382`:
+`uniforms.pulseHz = ease(uniforms.pulseHz, smoothedPulseTarget, tau: 3.0, dt: dt)`. Ein
+Tiefpass erster Ordnung mit τ = 3 s auf einen Atem-Sinus:
+
+| Atemzyklus | Restamplitude | Phasenverzug |
+|---|---|---|
+| 10 s (Resonanz) | **0,469** | 62,1° = **1,72 s zu spät** |
+| 6 s | 0,303 | 72,3° = 1,21 s |
+| 4 s | 0,208 | 78,0° = 0,87 s |
+
+Also: der Schwung käme **halbiert und knapp zwei Sekunden zu spät** — sichtbar als „das Bild
+wird schneller, während ich ausatme". Das ist kein subtiler Effekt, das ist ein
+Phasenfehler mit dem Vorzeichen des Gegenteils. **Und der Vergleich macht es eindeutig:**
+`uniforms.breath` wird mit τ = 0,35 s geglättet (Zeile 1184), ist bei 0,1 Hz also praktisch
+verzugsfrei (Gain 0,998). Die zwei Signale, die gekoppelt werden sollen, laufen durch
+Glätter, die sich um den Faktor 8,6 unterscheiden.
+
+⚠️ **Der Slew-Limiter ist NICHT der Blocker** — nachgerechnet, damit die nächste Sitzung nicht
+das Falsche repariert: bei 12 % Tiefe auf 1 Hz und 10 s Atem ist die Spitzensteigung
+0,075 Hz/s gegen ein Limit von 0,5 Hz/s. Bindend ist allein τ = 3,0.
+
+⛔ **Und die naheliegende „Reparatur" ist die eigentliche Falle:** τ herunterzudrehen ist ein
+ausgeliefertes Stabilitätsverhalten, das genau deshalb existiert (Zeile 864: ein Sprung in der
+Pulsrate wirkt ruckartig). Ein neuer Effekt darf ein bewährtes Glättungsgesetz nicht als
+Nebenwirkung aufweichen.
+
+**Do this instead — falls RSA gebaut wird:** den Faktor NACH dem Glätter ansetzen, auf dem
+Phasen-Inkrement selbst (`uniforms.pulsePhase += dt * flashHz`, Zeile ~1415). Dann trifft er
+den ungeglätteten Wert, und die Blitz-Klammer bleibt stromaufwärts wirksam. Nötig wären dafür
+`hrv` als gewöhnliche **Swift-Eigenschaft der View** (nicht als `BioUniforms`-Feld — dann bleibt
+#1119 außen vor) plus ein Argument an `update(…)`. Kosten: ein Eingriff in den
+flash-sicherheitskritischen Block, also mit eigener Herleitung und eigenem Wächter. Vorher zu
+klären: `hasMeasuredBreath` ist bei der Kamera an `resp.ratePerMinute` gekoppelt und bei
+HealthKit fraglich — ohne gemessenen Atem gibt es keine RSA, und der Term MUSS dann exakt 1,0
+sein (Golden Law: ein Körper ohne Messung bleibt bit-identisch).
