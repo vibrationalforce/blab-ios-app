@@ -26967,3 +26967,47 @@ unter einer Tap-Ziel-Reparatur einschleicht.
 Wächter `ThePresetChipMeetsTheInPanelFloorTests`: 2 Ansprüche, 5 Prüfungen, in Python
 getrieben, **alle grün**. Er pinnt die 26 und die 28 mit, damit eine DRITTE kleine Höhe rot
 wird und ein Mensch entscheidet, welcher Sorte sie ist. Er verbietet 44 nicht (#364).
+
+## Befund (noch nicht repariert) — Vier Founder-Bitten schicken ihn zu Türen, die es nicht mehr gibt
+
+Aufgefallen beim Vorbereiten der Geräte-Session (`python3 scripts/founder-verify.py`):
+**110 offene Bitten in 98 Dateien, keine beantwortet.** Das Werkzeug hat eine
+`BLOCKED (10)`-Sektion für „die Tür, die diese Bitte zu öffnen verlangt, ist entfernt" —
+und **es sieht die hier nicht**, weil sie in eine ANDERE Klasse fallen.
+
+**Gemessen, drei Zeilen:**
+· `showVisual` existiert in `Sources/` **gar nicht mehr** — nicht einmal als `@State`. Das
+  Vollbild-Cover ist mit #1069 vollständig weg. (CLAUDE.md nennt es noch „setzerloser
+  Kopfraum"; das ist inzwischen zu großzügig.)
+· `StillShutterButton(` hat **genau eine** Montagestelle: `FloatingVisualWindow.swift:1247`.
+· Der Donut-Schalter ist `Toggle(isOn: $spectralDonuts)` im **Field-Panel** (#1065).
+
+⭐ **Die FÄHIGKEITEN sind also alle drei erreichbar — die in den Bitten genannten WEGE sind
+tot.** Das ist eine eigene Klasse: nicht BLOCKED (die Tür fehlt), sondern **FEHLGELEITET**
+(die Tür ist umgezogen). Für den Founder ist der Unterschied nicht sichtbar: er sucht
+„Vollbild → Donut-Taste", findet nichts, und schließt entweder die Bitte als unbeantwortbar
+ab oder hält das Feature für gelöscht.
+
+Betroffen (Route falsch, Fähigkeit da):
+· `AStillIsOneFrameNotASecondPathTests.swift:144` — „Vollbild-Visual öffnen … Kamera-Taste
+  neben der Aufnahmetaste"
+· `TheDonutHidesTheDialsItCannotHearTests.swift:137` — „Vollbild-Visual → Donut-Taste"
+· `TheLookReadoutKnowsWhichPictureItLabelsTests.swift:118` — „Vollbild → Donut-Taste"
+· `TheStillSaysWhetherItWasSavedTests.swift:203` — „full screen → camera button"
+
+⚠️ **Und eine Hypothese ist beim Messen GESTORBEN, bevor sie Schaden anrichten konnte:** ich
+hielt zuerst auch „tap Field → Full screen" für tot. Ist es nicht — `Text("Full screen")`
+steht in `EchoelStudioView.swift:5191` und #1067 hat den Knopf auf „das EINE Fenster
+vergrößern" umgebaut. `VisualFineTuneReflowsTests:115` verlangt genau das und ist völlig in
+Ordnung. **Ein Sammel-Fix „alle Vollbild-Erwähnungen streichen" hätte eine korrekte Bitte
+zerstört.**
+
+⚠️ Ebenfalls beim Messen korrigiert: ich hielt `--setup` für unverdrahtet, weil `head -45`
+die Sektion abgeschnitten hatte. Der Modus funktioniert (`── BY SETUP`, 7 Eimer). **Ein
+`head` ist kein Befund.** Was er zeigt, ist echt und offen: **81 der 110 Bitten nennen keine
+Ausrüstung**, und das Werkzeug sagt ehrlich „nicht ‚braucht nichts' — ihre eigenen Worte
+sagen es nicht".
+
+Nicht in diesem Zyklus repariert (ein Ralph-Punkt pro Zyklus, #1144 läuft noch durch CI).
+Nächster Zyklus: die vier Routen einzeln nachmessen und umschreiben — **einzeln**, siehe die
+gestorbene Hypothese.
