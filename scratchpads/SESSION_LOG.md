@@ -25790,3 +25790,22 @@ Name und Kopf genau diese Geschichte SIND.
 - **Lehre:** #1069 war ein Lösch-Commit mit sechs mitgezogenen Wächtern (#456) — und ließ die
   Prosa in fünf Nachbar-Dateien stehen, die den Cover als TÜR zitierte. Nach einem Löschen ist der
   Grep über den NAMEN des Gelöschten (hier „cover", nicht nur `showVisual`) Teil des Löschens.
+
+## #1106 — `PatchbayView` sagte noch „#1025's width ceiling is kept", einen Commit nach seiner Löschung
+
+**Fund (Zyklus 23:58Z, dritter Grep dieser Art nach #1104/#1105 — diesmal über die Namen der
+#1024- und #1027-Löschungen):** `PatchbayView.swift` (Doc von `pairedRow`, geschrieben in #1026)
+behauptete, die Breiten-Obergrenze aus #1025 sei „kept … still right for iPad · Mac · Vision".
+#1027 (`fcd3d4b8`, derselbe Tag) hat sie auf Founder-Befehl vollständig entfernt
+(`EchoelSheetPanel.swift:32` trägt den Grabstein, `decisions.csv:720` den Wortlaut). Prosa
+nachgezogen, ⛔-Vermerk. Die #1024-Namen (`micMixStrip`, `PlugInInviteRow`, `plugInWatcher`)
+sind in `Sources/` sauber — nur Grabsteine und die lebende Datei `RoutePlugInWatcher.swift`.
+- **Bewusst NICHT angefasst, als Urteil festgehalten:** `GuideOverlay.swift:51` kappt die
+  Guide-Karte mit `.frame(maxWidth: 560)`. Auf jedem ausgelieferten iPhone (≤ 440 pt) ist das
+  inert; sichtbar würde es erst auf iPad/Vision, die nicht ausgeliefert sind. Der #1027-Wächter
+  (`TwoControlsShareALineOnlyWhileTheyFitTests:209`) verbietet `readableContentWidth` /
+  `readableWidth()`, keine `maxWidth`-Literale — eine Karte ist keine Ansicht. Wer die
+  Plattform-Leiter (CLAUDE.md: „jeder feste `frame` ist Ökosystem-Schuld") ernst nimmt, nimmt
+  diese Zeile in der iPad-Runde mit; heute wäre es ein unsichtbarer Pixel-Eingriff ohne Auge.
+- `VisualFineTuneReflowsTests`' Kopf erzählt die 560-Kappe des gelöschten `visualVJOverlay` als
+  GESCHICHTE („this slice adds a second host") — stehen gelassen, Sweep 1 hat ihn grün gelesen.

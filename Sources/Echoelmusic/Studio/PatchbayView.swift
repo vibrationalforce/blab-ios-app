@@ -373,8 +373,10 @@ struct PatchbayView: View {
     /// founder rotated the phone and reported back: *"Queer war doch alles gut. Nur hochkant
     /// war nicht passend."* Landscape was fine; PORTRAIT was broken. I had inferred the cause
     /// from a screen recording instead of measuring the rows, and the recording's rotated frames
-    /// made a wrong story look complete. #1025's width ceiling is kept — it is inert in portrait
-    /// and still right for iPad · Mac · Vision — but it was never this defect's repair.
+    /// made a wrong story look complete. #1025's width ceiling was never this defect's repair
+    /// (⛔ "is kept — it is inert in portrait and still right for iPad · Mac · Vision" stood
+    /// here from #1026; #1027 REMOVED that ceiling on founder order the same day — every view
+    /// fills the screen — and this line was not moved with it; #1106).
     ///
     /// THE FIX IS THE ONE SwiftUI ALREADY HAS. `ViewThatFits` takes the horizontal row when the
     /// proposed width can hold it and the stacked column when it cannot, per device and per text
