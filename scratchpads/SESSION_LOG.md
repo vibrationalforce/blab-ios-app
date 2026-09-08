@@ -27041,3 +27041,48 @@ kann sie weiterhin nicht sehen: sein `BLOCKED`-Detektor sucht die fehlende TÜR,
 Tür da, nur woanders. Ein MISROUTED-Detektor müsste jede in einer Bitte genannte UI-Beschriftung
 gegen `Sources/` greppen. Nicht gebaut — er hätte bei zwei von vier Fällen falsch Alarm geschlagen,
 weil „Full screen" als Beschriftung sehr wohl existiert. Erst messen, wie oft er recht hätte.
+
+## #1146 — Task #30 war falsch gestellt: `breathPhase` trägt ZWEI Größen, und die Umstellung hätte das gerade reparierte Bild invertiert
+
+Task #30 lautete: „die Kamera schreibt eine Sinus-Kurve, wo der Vertrag einen Sägezahn
+verspricht — also den Vertrag erfüllen." Ich habe statt des Vertrags die **Verbraucher**
+gemessen, und das dreht die Aufgabe um.
+
+**Gemessen** (`git grep -n "breathPhaseForSound\|\.breathPhase\b" -- Sources`):
+
+| liest es als | wer | heute |
+|---|---|---|
+| **PEGEL** (Lungenvolumen) | `MetalBioView` (`spread`), `SpectralDonutView`, `ArtNetSender` (DMX-Byte), beide Synth-Stimmen (Atem-Schwellen) | **richtig** — #1135 hat den Hump genau deswegen entfernt |
+| **POSITION** (Zyklus-Phase) | `ADMOSCSender` (Azimut ±180°), `BioPhaser`, `BioEventGraph.BreathPhaseDetector` | **falsch** |
+
+⭐ **Der Ereignis-Detektor ist der schärfste Beleg, weil er Arithmetik ist und keine
+Geschmacksfrage.** Seine Ausatem-Regel verlangt `previous > 0.8, phase < 0.2` in EINEM Sample.
+Der Kamera-Wert ist ein normierter Sinus — er kommt GLATT herunter, bei ~1 Hz Publish und 10 s
+Atem also ~0,2 pro Sample. **`.breathExhaleOnset` kann praktisch nie feuern.** Die
+Einatem-Regel (Aufwärts-Kreuzung von 0,5) feuert schon, aber bei MITTE-Einatmung, nicht bei dem
+Onset, den ihr Name verspricht.
+
+⛔ **Warum die Umstellung trotzdem falsch ist:** ein Sägezahn im GESPEICHERTEN Feld repariert
+die drei Positions-Leser und invertiert die fünf Pegel-Leser — darunter das Bild, das #1135
+vierzig Minuten vorher richtig gemacht hat und zu dem der Founder gerade um Bestätigung gebeten
+wird („am weitesten bei vollen Lungen?"). Er bekäme eine stille Antwort, die seine Frage
+beantwortet und gleichzeitig ungültig macht.
+
+**Council: nicht umbauen, festschreiben.** Der richtige Weg ist eine ZWEITE, abgeleitete Größe
+(`lastCrossT` + `periodEMA` liegen im Estimator bereit) — aber `BioEventGraph` gehört zur
+geschützten Rausch-Triade (READ-ONLY ohne ausdrückliche Founder-Freigabe), und sein Detektor
+müsste mitziehen. Das ist eine Founder-Frage, keine Ralph-Scheibe.
+
+⭐ **UND DAS IST DER ECHTE BLOCKER VON TASK #29 (RSA), nicht das Founder-Auge.** Respiratorische
+Sinusarrhythmie muss EINATMEN von AUSATMEN unterscheiden. Ein normierter Sinus ist symmetrisch
+um die Atemmitte — Steigen und Fallen sehen für einen Verbraucher, der nur den Wert liest,
+identisch aus. Das Vorzeichen des RSA-Terms ist aus diesem Feld **gar nicht ableitbar**.
+DEAD-END #1132 nannte eine Glättungskonstante als Hindernis; dieses hier sitzt davor und ist
+härter. Reihenfolge also: #30 (Founder-Entscheidung über die zweite Größe) → dann #29.
+
+**Geliefert:** der Befund steht im `breathPhase`-Vertragsblock in `Core/EngineBus.swift` — der
+Stelle, die eine Sitzung liest, BEVOR sie umstellt (#456; ein Sitzungsprotokoll wird in dem
+Moment nicht gelesen). Wächter `TheBreathFieldCarriesTwoQuantitiesTests`: 4 Ansprüche,
+6 Prüfungen, in Python getrieben, **alle bestanden**; Klammern ausgeglichen; Mutanten-Probe
+(`0.8` → `0.9`) trifft die Nadel nicht. Er verbietet nichts (#364) — er wird rot, wenn eine der
+gemessenen Stellen sich bewegt, und nennt jeweils die Prosa, die dann mitzuziehen ist.

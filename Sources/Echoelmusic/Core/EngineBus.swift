@@ -310,6 +310,38 @@ public struct BioSampleFrame: Sendable, Equatable {
     /// extremes, so the picture swells twice per breath. That conclusion was right when it was
     /// first written down; only its stated reason was wrong. Both are recorded so the next
     /// session can check the claim instead of inheriting it.
+    ///
+    /// ⛔ ONE FIELD, TWO PHYSICAL QUANTITIES — AND THE CONSUMERS ARE SPLIT (#1146, measured).
+    /// Task #30 stood as "the camera writes a sine where this contract promises a sawtooth,
+    /// so honour the contract". Converting the stored value is the WRONG repair, and the
+    /// reason is in the consumer list, not in the contract:
+    ///
+    ///   · LEVEL readers want lung VOLUME and are correct today — `MetalBioView` (the
+    ///     picture's `spread`, made raw by #1135 precisely so full lungs = widest),
+    ///     `SpectralDonutView`, `ArtNetSender`'s DMX byte, the two synth voices' breath swell.
+    ///   · POSITION readers want cycle PHASE and are wrong today — `ADMOSCSender` maps it to
+    ///     azimuth ±180°, `BioPhaser` treats it as a phase, and `BioEventGraph`'s
+    ///     `BreathPhaseDetector` looks for a 1→0 WRAP.
+    ///
+    /// The event detector is the sharpest evidence, because it is measurable rather than a
+    /// matter of taste: its exhale rule is `previous > 0.8 && phase < 0.2` in ONE sample. This
+    /// value falls back down SMOOTHLY (it is a sine, not a ramp), and at ~1 Hz publishing on a
+    /// 10 s breath it moves ~0.2 per sample — so **`.breathExhaleOnset` can essentially never
+    /// fire**. Its inhale rule (upward crossing of 0.5) does fire once per breath, but at
+    /// MID-inhale, not at the onset its name promises.
+    ///
+    /// ⚠️ SO THE REPAIR IS A SECOND, DERIVED VALUE — never a change to this one. A sawtooth
+    /// here would invert the picture the founder is being asked to confirm, silently, in the
+    /// same field. The estimator already holds both terms a cycle position needs (`lastCrossT`
+    /// and `periodEMA`), so the derivation is cheap; what it is NOT is free, because
+    /// `BioEventGraph` is in the protected Rausch triad (READ-ONLY without an explicit founder
+    /// ask), and its detector would have to move with it.
+    ///
+    /// ⚠️ AND THIS IS WHAT BLOCKS RSA (task #29), not the founder's eye. Respiratory sinus
+    /// arrhythmia needs to tell INHALE from EXHALE. A normalised sine is symmetric about
+    /// mid-breath — rising and falling look identical to a consumer reading only the value —
+    /// so the sign of the RSA term cannot be derived from this field at all. DEAD-END #1132
+    /// named a smoothing-constant blocker; this one sits upstream of it and is harder.
     public let breathPhase: Float
 
     /// `breathPhase` for MODULATION targets: unmeasured becomes a neutral `0.5`.
