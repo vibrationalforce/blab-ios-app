@@ -1773,7 +1773,32 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
     // (ceil-fold anchored at 780 nm): same tone, different colour. A second fold sitting in
     // the file with nothing calling it is not neutral — it is the one a future edit reaches
     // for by name, which is exactly how the prism kept the black-F seam for two weeks after
-    // the clouds were fixed. `toneColour` is the only fold; deleting this makes that literal.
+    // the clouds were fixed.
+    //
+    // ⛔ THE SENTENCE THAT CLOSED THIS PARAGRAPH SAID DELETING IT LEFT EXACTLY ONE FOLD IN
+    // THE FILE, AND THAT IS NOT WHAT WAS MEASURED (#1152c). A second tone→wavelength fold
+    // is alive and reachable BY NAME: `SpectralColor.visibleWavelength(forToneHz:)`, which
+    // rounds to the nearest ~555 nm green centre and then CLAMPS to 380…780 — the same naive
+    // shape the deleted function had, not the ceil-fold anchored at 780 nm that every
+    // COLOUR surface agrees on.
+    //
+    // IT IS NOT A DEFECT AND MUST NOT BE DELETED. It has ZERO call sites in `Sources/` —
+    // its declaration, one doc line beside it, and (now) this paragraph are the only places
+    // the name occurs. ⚠️ NO `grep` RECIPE IS WRITTEN HERE ON PURPOSE, and the reason is the
+    // `EchoelModalBank` lesson this repo already paid for: a mention-scan counts the very
+    // comment that describes the thing, so any recipe printed here would report a number
+    // this paragraph itself invented. The first draft of these lines cited one and was wrong
+    // before the file was saved. Measure the USE, never the mention, and read the hits.
+    // It is deliberately kept as the HONEST PHYSICAL READOUT — the number that
+    // says "F ≈ 780 nm edge" instead of pretending the seam is not there. Claim 4 of
+    // `TheColourCopyNamesThePurpleLineTests` requires it to survive, so removing it turns
+    // the blocking suite red on a correct tree.
+    //
+    // WHAT SURVIVES, AND IT IS THE HALF THAT MATTERS: `toneColour` is the only fold that
+    // COLOURS A PICTURE. The danger this paragraph names is unchanged and in fact sharper —
+    // a future edit reaching for a plausible name would find `visibleWavelength`, wire it to
+    // a colour surface, and reintroduce the black-F seam, because that guard protects the
+    // COPY and not the WIRING. Correct wording, correct warning, one false count removed.
 
     // Tone → colour on the CLOSED spectral circle. The visible band is barely one
     // octave, so the naive fold has a SEAM where CIE response → 0 (at A4=440 the
