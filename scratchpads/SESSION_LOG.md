@@ -27375,3 +27375,47 @@ Arbeitsbaum: alle drei grün.
 
 ⚠️ **Compile-verifiziert erst nach den Gates; GERÄTE-verifiziert gar nicht.** Ob die Kaustik jetzt
 schön aussieht statt nur vorhanden zu sein, entscheidet das Auge des Founders.
+
+## #1152c — „die einzige Faltung" war eine ZÄHLUNG, und eine zweite lebt unter ihrem Namen
+
+Die #1152-Klasse (ein Kommentar, dessen Voraussetzung eine spätere Scheibe entfernt hat) durch
+die Visual-Schicht gejagt. Ein weiterer Treffer, im Absatz, der die naive `toneWavelengthNm`
+löscht: er schloss mit *„`toneColour` is the only fold; deleting this makes that literal."*
+
+**Gemessen:** `SpectralColor.visibleWavelength(forToneHz:)` ist eine ZWEITE Ton→Wellenlänge-
+Faltung, lebendig und **unter ihrem Namen erreichbar**, und sie hat genau die naive Form der
+gelöschten (auf das nächste ~555-nm-Grünzentrum runden, dann auf 380…780 klemmen) statt der
+780-nm-Ceil-Faltung, auf die sich jede Farbfläche einigt.
+
+**Kein Defekt, nicht löschen.** Null Aufrufstellen in `Sources/`, absichtlich behalten als die
+EHRLICHE physikalische Ablesung — die Zahl, die „F ≈ 780 nm Kante" sagt, statt die Naht zu
+verschweigen. Anspruch 4 von `TheColourCopyNamesThePurpleLineTests`
+(`testTheRawWavelengthReadoutSurvives`) verlangt ihr Überleben; ein Löschen färbt das
+blockierende Bündel auf korrektem Baum rot.
+
+**Die tragende Hälfte überlebt und wird SCHÄRFER:** `toneColour` ist die einzige Faltung, die
+ein BILD einfärbt. Die Gefahr, die der Absatz benennt, ist jetzt konkret statt hypothetisch —
+eine künftige Bearbeitung greift nach einem plausiblen Namen, findet `visibleWavelength`,
+hängt es an eine Farbfläche und holt die schwarze-F-Naht zurück, weil jener Wächter die KOPIE
+schützt und nicht die VERDRAHTUNG.
+
+⛔ **ZWEI selbstverschuldete Lehren, beide an der Zeile aufgeschrieben.**
+
+1. **Die Korrektur lief in die Falle, die sie beschreibt.** Mein Entwurf zitierte
+   `git grep -n visibleWavelength -- Sources` als „nur Deklaration und eine Doc-Zeile" — wahr,
+   bevor ich es tippte, falsch danach, weil der neue Absatz den Namen dreimal nennt. Genau die
+   `EchoelModalBank`-Lehre: ein Vermerk, der einen Erwähnungs-Scan zitiert, verfälscht sein
+   eigenes Rezept. Dort steht jetzt bewusst KEIN Rezept, mit der Begründung daneben.
+2. **Die Anspruchs-NUMMER erst nach Nachlesen zitiert.** Es ist wirklich Anspruch 4. #1151 hat
+   eine falsche Transkription gekostet, weil ich dem Namen eines Anspruchs vertraut habe.
+
+**KEIN neuer Wächter, absichtlich (#416):** Anspruch 4 pinnt die Existenz schon in seinem einen
+Zuhause, und ein Negativ-Scan auf den gestrichenen Satz träfe genau diese Rücknahme (#491).
+Reine Prosa, keine Verhaltensänderung.
+
+⚠️ **Was der Durchgang NICHT fand, und das gehört dazu:** die `cc*`/`rp*`-Uniform-Slots sahen in
+meinem ersten Audit-Skript wie „kein Schreiber" aus — mein Regex traf die TUPEL-Zuweisung nicht
+(`(uniforms.cc0r, uniforms.cc0g, uniforms.cc0b) = …`). Sie werden korrekt geschrieben. Und das
+Layout-Risiko, vor dem die Datei warnt („a layout mismatch here renders garbage, not an error"),
+hat mit `TheUniformMirrorHasNoCompilerTests` bereits einen Wächter. Zwei Beinahe-Befunde, beide
+widerlegt, beide hier notiert, damit die nächste Sitzung sie nicht erneut aufwirft.
