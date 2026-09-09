@@ -1,4 +1,4 @@
-build: v10.79.464 — Doppelter Build erklärt · Preset-Leiste im Sound-Panel trifft die Tippmarke
+build: v10.79.465 — Der Depth-Look zeigt sein Kaustik-Netz statt einer grauen Fläche
 branch: claude/echoelmusic-neustart-auv3-6ri2ek (tokenless deploy via .deploy/release bump)
 notes: |
   ⚠ AN DIE NÄCHSTE SESSION: die Versionsnummer in Zeile 1 MUSS die erste im ganzen File
@@ -49,9 +49,55 @@ notes: |
   `.github/workflows/**` = berichten, nicht editieren. Bis dahin ist diese Zeile die
   einzige Bremse. Wächter: `TheDeployNoteNamesRealDoorsTests`, Anspruch 5.
 
-  Der Vorgänger ist 10.79.463 (und davor 10.79.462).
+  Der Vorgänger ist 10.79.464 (und davor 10.79.463).
 
-  ── 0. WARUM DU 10.79.463 ZWEIMAL IN TESTFLIGHT SIEHST ───────────────────
+  ── 0. WAS IN 10.79.465 NEU IST ──────────────────────────────────────────
+
+  **Genau eine Sache — aber diesmal siehst Du sie sofort.**
+
+  Der Look **„Depth"** hat bisher eine **flache graue Fläche** gezeigt. Nicht dunkler,
+  nicht detailärmer: rechnerisch der GLEICHE Wert an jedem Bildpunkt. Kein Muster, egal
+  was klang, egal wie Du geatmet hast.
+
+  Warum: Depth zeichnet das Licht, das durch eine schwingende Wasseroberfläche auf den
+  Boden fällt. Dafür braucht er zwei Zahlen aus der Wasser-Physik — wie eng die Wellen
+  stehen und wie stark sie sind. Diese Physik wurde nur gerechnet, wenn der Look **„Dish"**
+  gerade lief. Dish steht aber nicht in der Standard-Reihe, Depth schon. Also blieb die
+  Stärke auf null — und null heißt in dieser Formel „spiegelglatt".
+
+  **Jetzt:**
+
+  · engeres Netz bei höherem Ton, weiteres bei tiefem
+  · kräftiger bei lautem Ton, ruhiger bei leisem
+  · beim Atmen hebt und senkt sich die Tiefe des Bodens
+  · **Stille bleibt ein ruhiger, gleichmäßiger Grund — nicht schwarz.** Das ist die
+    physikalisch richtige Antwort, kein Notbehelf.
+
+  Die Blitz-Bremse ändert sich NICHT (1,50 Hz, nachgerechnet): weder die Stärke noch die
+  Tonhöhe tragen den Takt, an dem das Blitz-Budget hängt.
+
+  Alles andere aus dieser Runde ist Wahrheitsarbeit im Repo, die Du nicht siehst: ein
+  Kommentar behauptete „es gibt nur eine Umrechnung Ton→Farbe" — es gibt zwei, und die
+  zweite ist absichtlich da. Kein Klang, kein Bild betroffen.
+
+  ── 0b. NEU BEANTWORTBAR IN DIESEM BUILD ─────────────────────────────────
+
+  Gedruckt mit `python3 scripts/founder-verify.py --since 8540ad3e`, also nicht von Hand
+  zusammengesucht:
+
+  **VISUAL (1)**
+
+  · Visual-Fenster öffnen, den Look-Regler ganz nach rechts auf **„Depth"**, eine Sequenz
+    laufen lassen. Erwartet ist ein **Netz** wie auf einem Schwimmbadboden: helle Linien,
+    dunkle Zellen. Zwei Fragen, die nur Dein Auge beantwortet:
+    **(1)** Ist das Netz zu unruhig, oder gerade richtig?
+    **(2)** Bleibt es bei Stille ein ruhiger gleichmäßiger Grund — und nicht schwarz?
+
+  ⚠️ **Weiterhin offen und von mir NICHT erneut gefragt** (steht seit 463 hier): ist das
+  Bild am weitesten, wenn die Lungen VOLL sind, oder wenn sie leer sind? Wenn es umgekehrt
+  ist, kippt jede Atem-Abbildung — Bild, Licht, Raum, Klang — um einen halben Zyklus.
+
+  ── 0c. WARUM DU 10.79.463 ZWEIMAL IN TESTFLIGHT SIEHST ──────────────────
 
   **Mein Fehler, und er ist harmlos — aber Du sollst nicht rätseln.**
 
@@ -67,7 +113,7 @@ notes: |
   eigentliche Reparatur säße im Workflow und gehört Dir — dort steht sogar der Satz
   „only an explicit bump", der genau das behauptet, was der Filter nicht kann.
 
-  ── 0b. WAS IN 10.79.464 WIRKLICH NEU IST ────────────────────────────────
+  ── 0d. WAS IN 10.79.464 NEU WAR (Vorgänger) ─────────────────────────────
 
   **Ehrlich: sehr wenig, und das ist Absicht.**
 
@@ -83,7 +129,7 @@ notes: |
   wurde; eine Datei versprach „Cymatics als Nächstes", obwohl Cymatics längst als
   „Dish"-Look läuft. Nichts davon ändert einen Klang oder ein Bild.
 
-  ── 0c. NEU BEANTWORTBAR IN DIESEM BUILD ─────────────────────────────────
+  ── 0e. NEU BEANTWORTBAR IN 10.79.464 (dem VORGÄNGER, nicht diesem Build) ─
 
   Gedruckt mit `python3 scripts/founder-verify.py --since 7f7d8ce7` (das neue Gesetz im
   Kopf dieser Datei), also nicht von Hand zusammengesucht:
