@@ -27419,3 +27419,57 @@ meinem ersten Audit-Skript wie „kein Schreiber" aus — mein Regex traf die TU
 Layout-Risiko, vor dem die Datei warnt („a layout mismatch here renders garbage, not an error"),
 hat mit `TheUniformMirrorHasNoCompilerTests` bereits einen Wächter. Zwei Beinahe-Befunde, beide
 widerlegt, beide hier notiert, damit die nächste Sitzung sie nicht erneut aufwirft.
+
+## v10.79.465 ausgeliefert + der Durchgang, der NICHTS mehr fand (und was das wert ist)
+
+**Gate zuerst, und diesmal richtig gelesen.** `Xcode Compile Check` auf `2c00904d` = `success`.
+Die zwei Läufe davor (`6f46b717`, `f0c6ad9d`) sind `cancelled` — von meinen eigenen Folge-Pushes
+verdrängt — und beweisen nichts. Das ist die #1150-Lehre, diesmal vor dem Melden angewandt statt
+danach.
+
+**465 trägt genau eine sichtbare Änderung**, den Depth-Look aus #1152. Beide Datei-Gesetze in
+DEMSELBEN Commit: die `--since 8540ad3e`-Liste (eine neue VISUAL-Bitte) steht in Abschnitt 0b,
+nicht als Nachtrag — ein Nachtrag auf diesen Pfad schickt einen doppelten Build (#1151).
+Die drei Vorgänger-Abschnitte sind umnummeriert (0 → 0c, 0b → 0d, 0c → 0e), und 0e ist
+UMBENANNT: ein Abschnitt „NEU BEANTWORTBAR IN DIESEM BUILD", der den vorigen beschreibt, ist
+dieselbe Fehlerklasse wie eine veraltete Zahl — in dem Dokument, das mit dem Telefon in der Hand
+gelesen wird. Anker vor jeder Ersetzung gezählt (#1150): alle vier genau einmal.
+
+### Der Durchgang danach — drei Flächen, zwei sauber
+
+Founder-Ask ist „Deep Audit **und vorallem** … Visuals weiterentwickeln". Die #1152-Klasse
+(eine Prosa-Begründung, die wahr war und von einer späteren Scheibe still falsch gemacht wurde)
+systematisch weiter abgesucht:
+
+1. **Alle 49 `BioUniforms`-Felder** — wer schreibt, unter welcher Bedingung. Die `cc*`/`rp*`-Slots
+   sahen wie „kein Schreiber" aus; das war mein Regex, der TUPEL-Zuweisungen nicht traf
+   (`(uniforms.cc0r, uniforms.cc0g, uniforms.cc0b) = …`). **Sauber.** Die übrigen Gates
+   (`hasTarget`, `!reduceMotion`) sind legitim.
+2. **Jede „nur einer/niemand liest"-Behauptung in der Visual-Schicht** — EIN Treffer, #1152c.
+3. **Dieselbe Frage in `Sync/` (ADM-OSC · Art-Net · sACN)** — **sauber**, und zwar bemerkenswert:
+   `ADMOSCSender` trägt seine eigene Rücknahme („An earlier draft blamed
+   `FaceExpressionBioPublisher`… That was WRONG"), `streamsScene` ist als *second-order doorless*
+   korrekt registriert statt betürt, und das Atem-Gate unterscheidet bereits
+   `hasMeasuredBreathWaveform` von `hasMeasuredBreath`. Nichts nachzutragen.
+
+⭐ **Das Ergebnis „nichts gefunden" ist selbst ein Befund und wird deshalb aufgeschrieben.** Ohne
+diesen Eintrag sucht die nächste Sitzung dieselben drei Flächen erneut ab.
+
+### Was ich GEFUNDEN und bewusst NICHT gebaut habe (Task AH)
+
+`visual.detail` → `ringDensity` → shader `density`, und `styleField` reicht `density` NUR an
+`fieldRings`. Bei der Voreinstellung (Aurora) bewegt der Regler das Metal-Bild also **gar nicht**.
+Die Bildunterschrift sagt das ehrlich — aber ein ehrlich beschriftetes totes Bedienelement bleibt
+ein totes Bedienelement.
+
+Die physikalisch saubere Erweiterung liegt bereit und ist keine erfundene Physik: **Detail =
+AUSSCHNITT der Szene** (wie viel echtes Wasser der Schirm zeigt), was als
+`dishWindowMetres = 0.024` bereits als benannte freie Wahl im Code steht („named so the ripple
+count per screen can be argued with").
+
+⛔ **HALT, und der Grund ist eine Verifikations-Regel, keine Vorsicht:** das würde Dish/Depth/Water
+im Aussehen ändern, und **Depth wartet nach v465 auf das Auge des Founders**. Zwei Änderungen am
+selben Look vor der ersten Rückmeldung machen seine Antwort unlesbar — er könnte nicht sagen,
+worauf er reagiert. Genau die #1151-Lehre (zwei Builds mit derselben Nummer zerstören die
+Geräte-Verifikation), eine Ebene höher angewandt: nicht auf Build-Nummern, sondern auf
+Änderungen am selben Objekt.
