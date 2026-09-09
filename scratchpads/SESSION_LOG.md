@@ -27570,3 +27570,42 @@ abdeckt): mit `-c` oder ohne Deckel zählen, wenn die ANZAHL die Frage ist; den 
 ein Wächter auf eine wahre Verdrahtung wäre #416. Die Scheibe dieses Zyklus war #1153; das hier
 ist die Nachlese, und sie steht hier, damit die nächste Sitzung die Ausgabestufe nicht erneut
 verdächtigt.
+
+## Bio-Fläche abgesucht — sauber, und die Engpass-Diagnose, die daraus folgt
+
+**Gefragt (dieselbe #546/#1152-Frage):** welches Feld von `BioSampleFrame` bekommt an ALLEN
+Konstruktionsstellen dieselbe Literal-Konstante, hat also keinen Erzeuger?
+
+**Gemessen:** 23 Felder, **6** Konstruktionsstellen (`BioSimulator` · `CameraRPPG` ×2 ·
+`FaceExpression` · `HealthKit` · `PolarH10`). Ergebnis: **genau EINES** — `motionEnergy = 0` an
+allen sechs. Und das steht bereits wörtlich in CLAUDE.md („ALLE SECHS
+`BioSampleFrame`-Konstruktionsstellen in `Sources/` schreiben `motionEnergy: 0`"). Die Sechs
+stimmt als Zahl mit der Prosa überein. Jedes andere Feld variiert an mindestens einer Stelle.
+
+⚠️ Nicht mit `breathDepth`/`lfHf` verwechseln: die sind auf 0.5 gepinnt, aber in `…BioParams(`
+— einem ANDEREN Typ auf der DSP-Seite — und seit #496 dokumentiert.
+
+⭐ **DAMIT IST DIE #1152-KLASSE FÜR FÜNF FLÄCHEN GESCHLOSSEN** und das gehört als Liste ins Log,
+damit die nächste Sitzung nicht dieselben Wege geht: alle 49 `BioUniforms`-Felder · jede
+„nur einer / niemand liest"-Behauptung in der Visual-Schicht · `Sync/` (ADM-OSC · Art-Net ·
+sACN) · jede `Bool = false`-Deklaration in ganz `Sources/` (19 Kandidaten) · alle 23
+`BioSampleFrame`-Felder. **Ausbeute insgesamt: ein Verhaltens-Defekt (#1152) und zwei
+Prosa-Defekte (#1152c, #1153).**
+
+### Die Diagnose, die daraus folgt, und sie ist kein Ausweichen
+
+Der Engpass dieser Runde ist **nicht der Ideenvorrat**. Jede weitere Visual-Scheibe, die ich
+bauen könnte — Task #34 (AH) voran — verändert das Aussehen eines Looks, der bereits auf das
+Auge des Founders wartet. Die Warteschlange ist heute: die sechs Posten aus v10.79.460 (Aurora,
+Rings-Streifenabstand, Depth-Kaustik, Blend-Dämpfung, Reduce Motion am externen Schirm, der
+Dish-Look) **plus** die neue aus v10.79.465.
+
+**Zwei Änderungen am selben Objekt vor der ersten Rückmeldung machen die Rückmeldung unlesbar** —
+das ist dieselbe Mechanik wie #1151 (zwei Builds mit derselben Nummer zerstören die
+Geräte-Verifikation), nur auf Änderungen statt auf Build-Nummern angewandt. Weiterbauen wäre
+hier nicht Fleiß, sondern das Zerstören der einzigen Messung, die noch fehlt.
+
+**Der Einkaufszettel ist gedruckt und nicht geschätzt:** `python3 scripts/founder-verify.py`
+(gesamt) bzw. `--since <sha>` (nur neu). Was fehlt, ist eine Geräte-Sitzung — genau das, was der
+Ship-Gate-Absatz in CLAUDE.md über die zwei offenen Checks schon sagt: **beide sind sensorisch,
+keine Sitzung kann sie durch Bauen schließen.**
