@@ -114,6 +114,23 @@ public final class PolySynthVoice {
     /// mapping (unchanged sound). `true` = `.harmonicSeries` — HRV opens the overtone
     /// richness and the breath swells the amplitude ("harmonic mapping of physiological
     /// rhythms"). Low-rate user toggle → safe as a tracked `@Observable` property.
+    ///
+    /// ⛔ NO REACHABLE WRITER (#1153, measured). Its only setter is `BioSourceView`'s
+    /// Toggle, and that view has ZERO construction sites — it is doorless, and
+    /// deliberately so (`PulseMeasurementView` and `BreathGuideView` are registered in
+    /// CLAUDE.md for the same reason). So this flag is `false` for the whole life of a
+    /// shipped build and the polyphonic voice always uses the `.natural` mapping.
+    ///
+    /// ⚠️ WHY THE NOTE BELONGS HERE AND NOT ONLY IN THE REGISTER. Three bio flags sit
+    /// within twenty lines of each other and look interchangeable — and they are not:
+    /// `bioModulationEnabled` above HAS a reachable writer (`EchoelStudioView` sets it
+    /// true), while this one and `entrainmentEnabled` below do not. A register entry
+    /// naming the doorless VIEW cannot tell a reader which of the three PROPERTIES died
+    /// with it; this is the line a session reads before planning work on top of one.
+    ///
+    /// NOT A DEFECT AND NOT A DELETION. The mapping itself is live code the moment a
+    /// door exists; re-dooring is a call site, not a rebuild. Guard:
+    /// `TheHarmonicMappingHasNoDoorTests`.
     public var bioMappingHarmonic = false
 
     // MARK: - Brainwave entrainment (biofeedback-driven)
@@ -122,6 +139,23 @@ public final class PolySynthVoice {
     /// armed). When on, the body's coherence + pulse-lock quality drive the band + depth
     /// via `BioEntrainmentDirector`, applied to every voice's existing `EchoelEntrainment`.
     /// Low-rate (user toggle) so it is safe as a tracked `@Observable` property.
+    ///
+    /// ⛔ NO REACHABLE WRITER (#1153, measured) — the same finding as
+    /// `bioMappingHarmonic` above, and here it carries a SAFETY consequence the other
+    /// one does not. Its only setter is `BioSourceView`'s Toggle, and that view has zero
+    /// construction sites. So the entrainment stimulus is off for the whole life of a
+    /// shipped build; "silent until armed" is currently "silent, and nothing can arm it".
+    ///
+    /// ⚠️ WHOEVER RE-DOORS THIS SHIPS THE WARNINGS IN THE SAME COMMIT. CLAUDE.md's
+    /// SAFETY WARNINGS section is explicit for this stimulus specifically — not while
+    /// operating vehicles, not under alcohol or drugs, coordinate medication with a
+    /// provider, and the ≤3 Hz visual flash ceiling where a visual accompanies it. Today
+    /// no user can reach the stimulus, so the absence of an in-app warning surface costs
+    /// nothing; the day a Toggle exists, that stops being true in the same commit.
+    ///
+    /// NOT A DEFECT AND NOT A DELETION. `BioEntrainmentDirector` and the per-voice
+    /// `EchoelEntrainment` are live, tested code. Guard:
+    /// `TheHarmonicMappingHasNoDoorTests`.
     public var entrainmentEnabled = false {
         didSet { if !entrainmentEnabled { clearEntrainment() } }
     }

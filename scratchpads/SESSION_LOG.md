@@ -27473,3 +27473,63 @@ selben Look vor der ersten Rückmeldung machen seine Antwort unlesbar — er kö
 worauf er reagiert. Genau die #1151-Lehre (zwei Builds mit derselben Nummer zerstören die
 Geräte-Verifikation), eine Ebene höher angewandt: nicht auf Build-Nummern, sondern auf
 Änderungen am selben Objekt.
+
+## #1153 — Drei Bio-Schalter nebeneinander, zwei ohne erreichbaren Schreiber, und nichts sagte das
+
+**Wie gefunden — und der Sweep war zuerst KAPUTT, das gehört zum Befund.** Die #546-Richtung
+gesucht (Schreiber sauber, Verbraucher zur Laufzeit AUS): jede `Bool = false`-Deklaration ohne
+Schreiber. Erster Lauf: **0 Kandidaten**. Das musste falsch sein, denn `useConvolutionReverb` ist
+genau so ein Fall und steht in CLAUDE.md.
+
+⛔ **Der Bug ist einer, den `doctor.py` in seinen eigenen Kommentaren dokumentiert:**
+`\s*=\s*(?!false\b)` — das `\s*` VERFOLGT ZURÜCK auf null Zeichen, die Vorschau steht dann vor
+einem Leerzeichen statt vor `false`, und die Negation ist wirkungslos. Jede Deklaration zählte
+als „hat einen Schreiber". Reparatur: den Token NACH dem `=` einfangen und vergleichen, statt
+ihn per Lookahead ausschließen zu wollen. **Ein Parser, der nichts findet, ist ein Befund** —
+mein eigener Wächtersatz von heute früh, an mir selbst angewandt.
+
+**Der korrigierte Lauf: 19 Kandidaten, alle aufgeklärt, EINER neu.**
+· 4 dauerhaft `false` und ALLE schon dokumentiert (`useConvolutionReverb` #546,
+  `cloudKitConfigured` v1.0-Gate, `streamsScene` second-order doorless, `inputMonitoringEnabled`
+  #1024) · 5 mit Schreibern in türlosen Ansichten · der Rest sind Parameter-Defaults, die
+Aufrufer setzen (`autoAttuned` ← `autoMode`, `measuring` ← `running`).
+
+### Der Befund
+
+`PolySynthVoice` hält DREI Bio-Flaggen innerhalb von zwanzig Zeilen, alle `Bool = false`, alle
+gleich aussehend — und sie sind es nicht:
+
+| Flagge | einziger Schreiber | erreichbar? |
+|---|---|---|
+| `bioModulationEnabled` | `EchoelStudioView` | **JA** |
+| `bioMappingHarmonic` | `BioSourceView` Toggle | nein (türlos) |
+| `entrainmentEnabled` | `BioSourceView` Toggle | nein (türlos) |
+
+Die Datei nennt Türlosigkeit **null Mal**. Das Register in CLAUDE.md nennt die türlose ANSICHT —
+es kann nicht sagen, welche EIGENSCHAFTEN mit ihr gestorben sind. Genau die #1147-Lehre.
+
+⚠️ **Die Entrainment-Hälfte trägt eine SICHERHEITS-Folge, die andere nicht.** CLAUDE.md verlangt
+für diesen Reiz ausdrücklich Warnungen (nicht am Steuer, nicht unter Alkohol/Drogen, Medikamente
+mit Behandler abstimmen, ≤3 Hz Blitz). Heute erreicht niemand den Reiz, also kostet die fehlende
+Warnfläche nichts — **am Tag einer Tür hört das im selben Commit auf, wahr zu sein.** Genau das
+steht jetzt an der Zeile und in der Fehlermeldung des Wächters.
+
+### Die Zähl-Falle, in die ich fast gelaufen wäre
+
+`git grep -n "BioSourceView(" -- Sources` liefert **DREI** Treffer — und alle drei sind
+**Kommentare, die dieses Rezept zitieren**. Ich las das zuerst als Widerspruch zu CLAUDE.md
+(„NULL Konstruktionsstellen"). `BioSourceView.swift` und `PulseMeasurementView.swift` warnen
+beide in ihren Köpfen davor und drucken die korrigierte Fassung (`| grep -v ': *//'`). **Der
+Quelltext hat mich vor meiner eigenen Messung gerettet** — das ist der Wert dieser Kommentare,
+und es ist dasselbe Muster wie `EchoelModalBank`.
+
+**Wächter:** `Tests/CISmoke/TheHarmonicMappingHasNoDoorTests.swift`, 4 Ansprüche. Er MISST
+statt zu merken: Kommentarzeilen werden gestrippt, bevor gezählt wird. Anspruch 3 pinnt die
+lebende Gegenprobe — und schließt dabei **die deklarierende Datei selbst aus**, weil
+`bioModulationEnabled`s `didSet` an die innere Engine weiterreicht und dieselbe Nadel trifft;
+ohne den Ausschluss bliebe der Anspruch grün, nachdem die letzte echte FLÄCHE aufgehört hat zu
+schreiben — der Wächter läse seine eigene Verrohrung und nennte sie eine Tür. Erster Entwurf
+tat genau das. Alle Ansprüche sind POSITIV-Scans (#1142/#1144/#1147). Verbietet nichts (#364).
+
+**Rot-vor-grün:** Anspruch 4 ist rot ohne die zwei Notizen (Zählung ≠ 2). Alle vier gegen den
+Arbeitsbaum transkribiert grün.
