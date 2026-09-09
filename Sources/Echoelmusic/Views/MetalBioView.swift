@@ -1498,6 +1498,13 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
             // eased tau 0.5 s) nor `k` (a pitch) carries the phase, so no flash count moves.
             // This is the identical mechanism the already-budgeted Dish row (0.4, folds:
             // false → 1.00 Hz) rides on; counting it here would make that row wrong too.
+            // NEEDS-FOUNDER-VERIFY: Visual-Fenster auf, Look-Slider ganz nach rechts auf „Depth",
+            // eine Sequenz laufen lassen. VOR diesem Build war dort eine flache graue Fläche —
+            // rechnerisch konstant, kein Muster. Erwartet ist jetzt ein Kaustik-NETZ wie auf einem
+            // Schwimmbadboden: helle Linien, dunkle Zellen, feiner bei hohem Ton, kräftiger bei
+            // lautem Ton, und beim Atmen hebt und senkt sich die Tiefe. Zwei Fragen, die nur das
+            // Auge beantwortet: (1) ist das Netz zu unruhig oder gerade richtig, (2) bleibt es bei
+            // Stille ein ruhiger gleichmäßiger Grund statt schwarz? Wenn ja, ist #1152 abgenommen.
             if Self.rendersFromDishSolve(uniforms.style)
                 || Self.rendersFromDishSolve(uniforms.styleB),
                let dish = FaradayDish.response(driveHz: Double(uniforms.toneHz),
