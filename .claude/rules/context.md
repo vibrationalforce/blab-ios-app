@@ -84,6 +84,14 @@ silently shows the wrong ones. The real repair is ordering the file, not widenin
   selected a twelfth).
 - Write the **command** next to any number you record, so the next reader can re-derive it
   instead of trusting it.
+- **A measurement that can silently return LESS than the truth is not a measurement.** Two
+  forms cost a near-miss each on 2026-09-09: `| head -N` on a grep whose COUNT was the question
+  (the list was cut, and the missing rows would have refuted the finding — on a load-bearing
+  CLAUDE.md claim), and `\s*=\s*(?!false\b)`, where `\s*` backtracks to zero so the lookahead
+  sits in front of a space and excludes nothing (a whole-repo sweep returned 0 candidates and
+  the known case was among them). Count with `-c` or no cap; capture the token after `=` and
+  compare it rather than negating with a lookahead. **A parser that matches nothing is a
+  finding, never a pass** — and neither of these announces itself.
 
 ## 3. Reading CI
 

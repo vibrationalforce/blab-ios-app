@@ -27533,3 +27533,40 @@ tat genau das. Alle Ansprüche sind POSITIV-Scans (#1142/#1144/#1147). Verbietet
 
 **Rot-vor-grün:** Anspruch 4 ist rot ohne die zwei Notizen (Zählung ≠ 2). Alle vier gegen den
 Arbeitsbaum transkribiert grün.
+
+## Der Durchgang, der die tragendste Behauptung PRÜFTE — und sie hält
+
+**Gefragt:** CLAUDE.md nennt `PianoRollModel` „die Wirbelsäule der Ausgabestufe
+(Visual · Licht · Raum)". Eine Fähigkeits-Behauptung über DREI Medien in einer Zeile, die eine
+Sitzung liest, bevor sie über die Ausgabestufe plant — genau die Form, die #1152 als falsch
+erwiesen hat.
+
+**Ergebnis: sie stimmt, vollständig verdrahtet.** `Sync/MusicMediaMapping` ist der
+Musik→Medien-Wandler, und alle drei Funktionen haben echte Aufrufer:
+`dimmerUnit(forMusic:)` → `ArtNetSender:215` + `SACNSender:194` ·
+`dmxChannels(forMusic:)` → `ArtNetSender:214` + `SACNSender:193` ·
+`admMessages(forMusic:object:)` → `ADMOSCSender:214`. Licht UND Raum lesen die Musik.
+
+⛔ **UND ICH HÄTTE FAST DAS GEGENTEIL GEMELDET.** Mein erster Befehl war
+`git grep -n "MusicalFrame" -- Sources | grep -v EngineBus | head -20`. Die Liste war bei 20
+ABGESCHNITTEN, und die abgeschnittenen Zeilen waren genau die aus `Sync/`. Ich las „kommt in
+`Sync/` nicht vor" und war einen Schritt davon entfernt, eine tragende Gesetzeszeile als
+Über-Behauptung zu melden — auf einer Messung, die ihr eigenes Gegenbeispiel weggeschnitten hatte.
+
+⭐ **ZWEITER FALL DERSELBEN FAMILIE IN EINER STUNDE**, und deshalb ist es eine Regel und keine
+Anekdote: der `\s*=\s*(?!false\b)`-Rückverfolgungs-Bug (#1153) hat einen Repo-weiten Sweep auf
+0 Kandidaten gebracht, obwohl der bekannte Fall darunter war. **Beide Male hat das WERKZEUG
+still weniger geliefert als die Wahrheit, und beide Male sah das Ergebnis wie eine Antwort aus.**
+Der Unterschied zu einer veralteten Zahl: eine veraltete Zahl ist falsch und bleibt prüfbar;
+eine abgeschnittene Messung ist eine Wahrheit über eine Teilmenge, die sich als Wahrheit über
+die Menge ausgibt.
+
+**Regel nachgetragen in `.claude/rules/context.md` §2** (+721 B in der immer geladenen Menge —
+bewusst, weil §2 genau „Measure; do not recite" heißt und der bestehende Text diese Form nicht
+abdeckt): mit `-c` oder ohne Deckel zählen, wenn die ANZAHL die Frage ist; den Token NACH dem
+`=` einfangen und vergleichen, statt ihn per Lookahead auszuschließen.
+
+⚠️ **Kein Code geändert. Kein Wächter** — es gibt hier nichts zu pinnen, was nicht schon stimmt;
+ein Wächter auf eine wahre Verdrahtung wäre #416. Die Scheibe dieses Zyklus war #1153; das hier
+ist die Nachlese, und sie steht hier, damit die nächste Sitzung die Ausgabestufe nicht erneut
+verdächtigt.
