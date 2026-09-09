@@ -606,6 +606,31 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
     /// the CPU decides whether to solve the physics; `styleField`'s bucket `si < 2.5` is the
     /// same number on the GPU side.
     private static let dishStyleIndex: Float = 2
+    /// The shader slot the DEPTH CAUSTICS look renders in — `styleField`'s bucket `si < 7.5`.
+    ///
+    /// It is named here, next to `dishStyleIndex`, for one reason: `fieldDepthCaustics`
+    /// takes `u.dishK` and `u.dishStrength`. It is the SECOND reader of the dish solve, and
+    /// the gate below has to know that.
+    private static let depthCausticsStyleIndex: Float = 7
+
+    /// True when the renderer would hand this style index the dish solve — i.e. the field
+    /// function it picks reads `u_dishK` / `u_dishStrength`. Today that is Dish (2) and
+    /// Depth caustics (7); `fieldDepthCaustics`' own comment says why ("the same
+    /// gravity–capillary solve `fieldDish` renders from above … one experiment drawn twice").
+    ///
+    /// ⚠️ IT MIRRORS THE SHADER'S BUCKETING, NOT `==`, and that is the
+    /// `LookBlendMap.rendersAsRings` lesson applied a second time: `styleField` clamps
+    /// `si` to [0, 9] and THEN buckets (`else if (si < 2.5)`), so slot 2 is really the
+    /// half-open band [1.5, 2.5). The values this file writes are always exact integers
+    /// (`Float(min(max(style, 0), 9))`), so an `==` test would agree today — but it would
+    /// be claiming to mirror the renderer while doing something narrower, which is exactly
+    /// the sentence that had to be retracted in `LookBlendMap`.
+    private static func rendersFromDishSolve(_ index: Float) -> Bool {
+        let si = min(max(index, 0), 9)
+        let half: Float = 0.5
+        return (si >= dishStyleIndex - half && si < dishStyleIndex + half)
+            || (si >= depthCausticsStyleIndex - half && si < depthCausticsStyleIndex + half)
+    }
     /// How much real water the screen shows edge to edge, metres — a CHOICE (a macro view of
     /// the dish), named so the ripple count per screen can be argued with. At 24 mm middle C
     /// (λ = 3.02 mm) shows ~8 ripples across; at the ~1.3 kHz reach of full drive ~24.
@@ -1445,9 +1470,36 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
             uniforms.intensity = Self.ease(uniforms.intensity, target.intensity, tau: 0.4,  dt: dt)
             // WATER DISH (#1101): solve the physics for the EASED tone (so the lattice glides
             // with the pitch the way the Water look does) and ease only the strength — the
-            // luminance-bearing quantity. Only when the dish is one of the two live looks;
-            // otherwise the uniforms hold their last value and nothing reads them.
-            if uniforms.style == Self.dishStyleIndex || uniforms.styleB == Self.dishStyleIndex,
+            // luminance-bearing quantity. Only when a look that READS the solve is live;
+            // otherwise the uniforms hold their last value.
+            //
+            // ⛔ THIS GATE NAMED ONLY THE DISH, AND THE SENTENCE THAT JUSTIFIED IT —
+            // "nothing reads them" — WAS TRUE WHEN WRITTEN AND FALSE WHEN SHIPPED (#1152,
+            // measured). #1101 introduced the solve for `fieldDish` alone, and that clause
+            // was correct. Slice 2 of the caustics work then wired `fieldDepthCaustics` to
+            // the SAME two uniforms (`styleField` line: `fieldDepthCaustics(pf, phase, coh,
+            // breath, u_dishK, u_dishStrength)`) and did not widen this condition. The gate
+            // kept its old premise while a second consumer appeared underneath it.
+            //
+            // WHAT THAT COST, AS ARITHMETIC RATHER THAN AS A WORRY. `dishStrength` defaults
+            // to 0 and this was its ONLY writer, so on any run where the Dish look was not
+            // simultaneously live it stayed 0 forever. In `fieldDepthCaustics` that means
+            // φ = 0 ⇒ det J = 1 at all three depths ⇒ `lit` = 1 ⇒ `net` = 1 / 2.5 = 0.40 at
+            // EVERY pixel. Not "dimmer" and not "less detailed": mathematically constant
+            // across the whole screen, one flat grey, with `pow(0.40, …)` still constant.
+            // Depth sits in `LookBlendMap.defaultSequence` ([3, 5, 7]) and Dish does not, so
+            // that was the DEFAULT case, not an edge one — a shipped curated look rendering
+            // the "flat flood" this file fought elsewhere. `dishK` was frozen at 25 on the
+            // same path, i.e. pitch-deaf even had the strength been non-zero.
+            //
+            // FLASH BUDGET IS UNCHANGED, and that is checked rather than assumed. The Depth
+            // row derives from phase-BEARING terms, and its comment names the only one:
+            // `sin(phase * 0.30)` in `breathe`. Neither `strength` (a music-level envelope,
+            // eased tau 0.5 s) nor `k` (a pitch) carries the phase, so no flash count moves.
+            // This is the identical mechanism the already-budgeted Dish row (0.4, folds:
+            // false → 1.00 Hz) rides on; counting it here would make that row wrong too.
+            if Self.rendersFromDishSolve(uniforms.style)
+                || Self.rendersFromDishSolve(uniforms.styleB),
                let dish = FaradayDish.response(driveHz: Double(uniforms.toneHz),
                                                drive: Double(dishDriveTarget)) {
                 let kPerUnit = Float(dish.wavenumber) * Self.dishWindowMetres / 2

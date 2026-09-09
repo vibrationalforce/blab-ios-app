@@ -27306,3 +27306,72 @@ editieren). Bis dahin ist die Prosa die einzige Bremse. Wächter: fünfter Anspr
 `TheDeployNoteNamesRealDoorsTests` (positiver Scan, #1148-Grund); er wird rot, wenn der Trigger
 je auf einen echten Bump verengt wird, und sagt dann, die Warnung sei zurückzunehmen — nicht
 den Trigger wieder zu öffnen (#364). Alle 6 Prüfungen in Python getrieben, grün.
+
+## #1152 — Der Depth-Look rendert eine flache Fläche: die Dish-Physik war auf den Dish-Look gegated
+
+**Befund (gemessen, nicht vermutet).** `MetalBioRenderer` löst einmal pro Frame `FaradayDish`
+und schreibt `dishK`/`dishStrength`/`dishHex`. Das Gate war
+`if uniforms.style == Self.dishStyleIndex || uniforms.styleB == Self.dishStyleIndex`, mit der
+Begründung im Kommentar: *„otherwise the uniforms hold their last value and nothing reads them."*
+
+Diese Begründung war **wahr, als sie geschrieben wurde (#1101, ein Verbraucher)** und **falsch,
+als sie ausgeliefert wurde**. Scheibe 2 der Kaustik-Arbeit hat `fieldDepthCaustics` an dieselben
+zwei Uniforms gehängt — absichtlich, der Shader-Kommentar sagt es selbst: *„THE SURFACE IS THE
+DISH'S … the same gravity–capillary solve `fieldDish` renders from above … one experiment drawn
+twice"*. Das CPU-Gate wurde nicht mitgeweitet.
+
+**Die Kosten als Arithmetik, nicht als Sorge.** `dishStrength` hat den Default 0 und das Gate
+hielt seinen EINZIGEN Schreiber. Lief also Depth ohne gleichzeitig aktiven Dish, blieb der Wert
+für immer 0. In `fieldDepthCaustics`:
+
+```
+strength 0 → phi 0 → d0 = d1 = d2 = 1 → jeder Term min(1/max(1, 1/8), 8) = 1
+           → acc = 1.85 → lit = 1.0 → net = clamp(1.0 / 2.5) = 0.40
+```
+
+**0,40 an JEDEM Pixel.** Nicht „dunkler", nicht „weniger Detail": mathematisch konstant über den
+ganzen Schirm, ein flaches Grau, und `pow(0.40, …)` ist ebenfalls konstant. `dishK` stand
+derweil eingefroren auf 25, also auch tonhöhen-taub.
+
+**Und es war der REGELFALL, keine Randlage.** `LookBlendMap.defaultSequence = [3, 5, 7]` — 7 ist
+Depth. Dish (2) steht NICHT darin. Einer von drei kuratierten Standard-Looks hat die „flat
+flood" gerendert, gegen die dieselbe Datei an anderer Stelle kämpft.
+
+**Reparatur.** Ein benannter Index `depthCausticsStyleIndex = 7` neben `dishStyleIndex`, plus
+ein Spiegel-Helfer `rendersFromDishSolve(_:)`, den das Gate für BEIDE Style-Slots fragt.
+
+⭐ **Der Helfer spiegelt die Shader-BUCKETS, nicht `==`** — die `LookBlendMap.rendersAsRings`-Lehre
+ein zweites Mal angewandt: `styleField` klemmt `si` auf [0, 9] und bucketet dann (`else if
+(si < 2.5)`), Slot 2 ist also in Wahrheit das halboffene Band [1.5, 2.5). Die Werte, die diese
+Datei schreibt, sind immer exakte Ganzzahlen (`Float(min(max(style, 0), 9))`), ein `==` wäre
+heute also einverstanden — aber es behauptete, den Renderer zu spiegeln, während es etwas
+Engeres tut. Genau der Satz, der in `LookBlendMap` zurückgenommen werden musste.
+
+**Blitz-Budget UNVERÄNDERT, und das ist geprüft, nicht angenommen.** Die Depth-Zeile leitet sich
+aus phasen-TRAGENDEN Termen ab, und ihr Kommentar nennt den einzigen: `sin(phase * 0.30)` in
+`breathe`. Weder `strength` (eine Musikpegel-Hüllkurve, geglättet tau 0,5 s) noch `k` (eine
+Tonhöhe) trägt die Phase. Es ist derselbe Mechanismus, auf dem die bereits budgetierte
+Dish-Zeile (0.4, folds: false → 1,00 Hz) reitet; ihn hier zu zählen machte jene Zeile falsch.
+
+**Nebenbefund, der eine Website-Zeile betrifft und sie NICHT ändert.** `docs/faq.html` sagt
+„four generative looks (Rings, Water, Aurora, Depth) driven live by your heart rate, coherence
+and breath". Für Depth war das halb falsch: Atem und Puls gingen beide in `phi` und wurden von
+der Null verschluckt; nur Kohärenz überlebte, als flache Helligkeit ohne Bild. Die Reparatur
+macht die vorhandene Aussage WAHR — deshalb wird keine Kopie angefasst. (Founder-Auge steht
+weiterhin aus; „wahr im Code" ist nicht „abgenommen am Gerät".)
+
+**Wächter:** `Tests/CISmoke/TheDepthLookGetsTheDishSolveTests.swift`, 3 Ansprüche.
+Anspruch 1 **leitet die Lesermenge aus `styleField`s eigener Dispatch ab** (welcher Bucket
+`u_dishK` durchreicht, ist ein Leser) statt eine Liste `{2, 7}` zu merken — eine gemerkte Liste
+ist genau das, was hier versagt hat. Er geht an dem Tag rot, an dem ein DRITTER Verbraucher
+dazukommt, ohne dass das Gate es lernt. Alle drei Ansprüche sind POSITIV-Scans: die Rücknahme am
+Gate zitiert notwendigerweise den gestrichenen Satz, ein Negativ-Scan träfe also die Rücknahme
+selbst — die selbstbezügliche Nadel-Falle, die dieses Repo dreimal bezahlt hat (#1142, #1144,
+#1147).
+
+**Rot-vor-grün belegt, nicht behauptet:** gegen `git show HEAD:…MetalBioView.swift` transkribiert
+liefert Anspruch 1 „Leser [7] nicht gegated" und Anspruch 2 „Spiegel-Helfer fehlt". Gegen den
+Arbeitsbaum: alle drei grün.
+
+⚠️ **Compile-verifiziert erst nach den Gates; GERÄTE-verifiziert gar nicht.** Ob die Kaustik jetzt
+schön aussieht statt nur vorhanden zu sein, entscheidet das Auge des Founders.
